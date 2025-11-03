@@ -73,6 +73,15 @@ const VisualAssistant: React.FC = () => {
         setOutputLanguage(contextLanguage);
     }, [contextLanguage]);
 
+    // This effect handles attaching the stream to the video element.
+    // It runs when the session becomes active, ensuring the video element
+    // is present in the DOM before we try to access it.
+    useEffect(() => {
+        if (isSessionActive && streamRef.current && videoRef.current) {
+            videoRef.current.srcObject = streamRef.current;
+        }
+    }, [isSessionActive]);
+
     useEffect(() => {
         // Initialize recognition and audio context once
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -118,9 +127,6 @@ const VisualAssistant: React.FC = () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             streamRef.current = stream;
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-            }
             setIsSessionActive(true);
             setError(null);
             setLimitError(null);

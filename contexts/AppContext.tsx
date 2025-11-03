@@ -61,7 +61,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
   const [userRole, setUserRoleState] = useState<UserRole | null>(() => (localStorage.getItem('userRole') as UserRole) || null);
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const storedTheme = localStorage.getItem('theme') as Theme;
+    if (storedTheme) {
+      return storedTheme;
+    }
+    // Check for system preference if no theme is stored
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
   const [language, setLanguageState] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'en');
   
   // State for library and reports
@@ -152,10 +159,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
 
-  // Persistence effects
+  // Persistence and system effects
   useEffect(() => { localStorage.setItem('user', JSON.stringify(user)); }, [user]);
   useEffect(() => { if (userRole) localStorage.setItem('userRole', userRole); else localStorage.removeItem('userRole'); }, [userRole]);
-  useEffect(() => { const root = window.document.documentElement; root.classList.remove('light', 'dark'); root.classList.add(theme); localStorage.setItem('theme', theme); }, [theme]);
+  useEffect(() => { 
+      const root = window.document.documentElement; 
+      root.classList.remove('light', 'dark'); 
+      root.classList.add(theme); 
+  }, [theme]);
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      // Only set theme if user hasn't chosen one manually
+      if (!localStorage.getItem('theme')) {
+        setThemeState(e.matches ? 'dark' : 'light');
+      }
+    };
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
   useEffect(() => { localStorage.setItem('language', language); }, [language]);
   useEffect(() => { localStorage.setItem('lessonLists', JSON.stringify(lessonLists)); }, [lessonLists]);
   useEffect(() => { localStorage.setItem('quizAttempts', JSON.stringify(quizAttempts)); }, [quizAttempts]);
@@ -178,10 +200,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem('subscriptionTier');
     localStorage.removeItem('credits');
     localStorage.removeItem('usage');
+    localStorage.removeItem('theme'); // Clear theme preference on sign out
   }, []);
 
   const setUserRole = useCallback((role: UserRole | null) => setUserRoleState(role), []);
-  const toggleTheme = useCallback(() => setTheme(prev => (prev === 'light' ? 'dark' : 'light')), []);
+  const toggleTheme = useCallback(() => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    localStorage.setItem('theme', newTheme); // Set user preference
+    setThemeState(newTheme);
+  }, [theme]);
   const setLanguage = useCallback((lang: Language) => setLanguageState(lang), []);
   const addLessonList = useCallback((name: string) => { const newList: LessonList = { id: Date.now().toString(), name, topics: [] }; setLessonLists(prev => [...prev, newList]); return newList; }, []);
   const addTopicToLessonList = useCallback((listId: string, topic: SavedTopic) => { setLessonLists(prev => prev.map(list => list.id === listId ? { ...list, topics: [...list.topics, topic] } : list)); }, []);
