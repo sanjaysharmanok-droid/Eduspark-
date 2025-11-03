@@ -1,23 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback, useContext } from 'react';
-import { getLiveResponse, generateSpeech } from '../../services/geminiService';
-import Card from '../common/Card';
-import Spinner from '../common/Spinner';
-import Button from '../common/Button';
+import { GoogleGenAI, LiveServerMessage, Modality, Blob, ClientMessage } from '@google/genai';
 import { Language } from '../../types';
 import { useTranslations } from '../../hooks/useTranslations';
 import { AppContext } from '../../contexts/AppContext';
 import UpgradePrompt from '../common/UpgradePrompt';
 import { ToolKey } from '../../constants';
 import { SwitchCameraIcon } from '../icons';
+import Button from '../common/Button';
+import Spinner from '../common/Spinner';
 
-// Add SpeechRecognition to the window interface
-interface IWindow extends Window {
-  webkitSpeechRecognition: any;
-  SpeechRecognition: any;
-}
-
-// --- Audio Decoding Functions (for TTS) ---
-// #region Audio Decoding Functions
+// #region Helper Functions
+// --- Audio Decoding (for TTS) ---
 function decode(base64: string): Uint8Array {
     const binaryString = atob(base64);
     const len = binaryString.length;
@@ -44,6 +37,38 @@ async function decodeAudioData(
     }
     return buffer;
 }
+// --- Audio Encoding (for Mic) ---
+function encode(bytes: Uint8Array) {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+function createBlob(data: Float32Array): Blob {
+  const l = data.length;
+  const int16 = new Int16Array(l);
+  for (let i = 0; i < l; i++) {
+    int16[i] = data[i] * 32768;
+  }
+  return {
+    data: encode(new Uint8Array(int16.buffer)),
+    mimeType: 'audio/pcm;rate=16000',
+  };
+}
+// --- Image Encoding ---
+const blobToBase64 = (blob: globalThis.Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64data = (reader.result as string).split(',')[1];
+            resolve(base64data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};
 // #endregion
 
 const BackIcon: React.FC = () => (
@@ -52,245 +77,233 @@ const BackIcon: React.FC = () => (
     </svg>
 );
 
+type Transcription = { role: 'user' | 'model'; text: string; isFinal: boolean };
+
 const VisualAssistant: React.FC = () => {
+    const { canUseFeature, useFeature, setActiveTool, userRole, language } = useContext(AppContext);
+    const { t } = useTranslations();
+    const defaultTool = userRole === 'teacher' ? 'lessonPlanner' : 'homeworkHelper';
+
     const [isSessionActive, setIsSessionActive] = useState(false);
-    const [spokenText, setSpokenText] = useState('');
-    const [responseText, setResponseText] = useState('');
-    const [isListening, setIsListening] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [limitError, setLimitError] = useState<string | null>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
     const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
-    const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+    const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+    const [transcriptionHistory, setTranscriptionHistory] = useState<Transcription[]>([]);
 
+    const sessionPromiseRef = useRef<Promise<any> | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
-    const recognitionRef = useRef<any>(null);
+    const inputAudioContextRef = useRef<AudioContext | null>(null);
+    const outputAudioContextRef = useRef<AudioContext | null>(null);
+    const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
+    const mediaStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+    const frameIntervalRef = useRef<number | null>(null);
+    const nextStartTimeRef = useRef(0);
+    const audioSourcesRef = useRef(new Set<AudioBufferSourceNode>());
 
-
-    const { language: contextLanguage } = useTranslations();
-    const { canUseFeature, useFeature, setActiveTool, userRole } = useContext(AppContext);
-    const [outputLanguage, setOutputLanguage] = useState<Language>(contextLanguage);
-
-    const defaultTool = userRole === 'teacher' ? 'lessonPlanner' : 'homeworkHelper';
-
-    useEffect(() => {
-        setOutputLanguage(contextLanguage);
-    }, [contextLanguage]);
-    
-    useEffect(() => {
-        if (isSessionActive && selectedDeviceId) {
-            // Stop previous stream if it exists
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
+    const stopSession = useCallback(async () => {
+        if (sessionPromiseRef.current) {
+            try {
+                const session = await sessionPromiseRef.current;
+                session.close();
+            } catch (e) {
+                console.error("Error closing session:", e);
             }
-
-            const constraints = {
-                video: { deviceId: { exact: selectedDeviceId } },
-                audio: false
-            };
-
-            navigator.mediaDevices.getUserMedia(constraints)
-                .then(stream => {
-                    streamRef.current = stream;
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = stream;
-                    }
-                })
-                .catch(err => {
-                    console.error('Error switching camera.', err);
-                    setError('Could not access the selected camera. Please grant permissions.');
-                });
-        }
-        
-        return () => {
-            if (streamRef.current && !isSessionActive) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-                streamRef.current = null;
-            }
-        };
-    }, [isSessionActive, selectedDeviceId]);
-
-    useEffect(() => {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-        const { webkitSpeechRecognition, SpeechRecognition } = window as unknown as IWindow;
-        const SpeechRecognitionAPI = webkitSpeechRecognition || SpeechRecognition;
-        
-        if (!SpeechRecognitionAPI) {
-            setError("Speech recognition is not supported by your browser.");
-            return;
+            sessionPromiseRef.current = null;
         }
 
-        const recognition = new SpeechRecognitionAPI();
-        recognitionRef.current = recognition;
-        recognition.continuous = false;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-
-        recognition.onstart = () => setIsListening(true);
-        recognition.onend = () => setIsListening(false);
-        
-        recognition.onresult = (event: any) => {
-            const transcript = Array.from(event.results)
-                .map((result: any) => result[0])
-                .map((result) => result.transcript)
-                .join('');
-            setSpokenText(transcript);
-        };
-
-        recognition.onerror = (event: any) => {
-            console.error('Speech recognition error', event.error);
-            setError('Speech recognition failed. Please check microphone permissions.');
-            setIsListening(false);
-        };
-
-        return () => {
-            stopSession();
-            audioContextRef.current?.close();
-        };
-    }, []);
-
-    const getAndSetDevices = async () => {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputs = devices.filter(device => device.kind === 'videoinput');
-        setVideoDevices(videoInputs);
-        if (videoInputs.length > 0) {
-            setSelectedDeviceId(videoInputs[0].deviceId);
-        }
-    };
-    
-    const startSession = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            stream.getTracks().forEach(track => track.stop()); // Stop dummy stream immediately
-
-            await getAndSetDevices();
-            setIsSessionActive(true);
-            setError(null);
-            setLimitError(null);
-        } catch (err) {
-            console.error('Error accessing media devices.', err);
-            setError('Could not access camera and microphone. Please grant permissions and try again.');
-        }
-    };
-    
-    const stopSession = () => {
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
             streamRef.current = null;
         }
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
-        }
+        if (videoRef.current) videoRef.current.srcObject = null;
+        if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
+
+        if (scriptProcessorRef.current) scriptProcessorRef.current.disconnect();
+        if (mediaStreamSourceRef.current) mediaStreamSourceRef.current.disconnect();
+        inputAudioContextRef.current?.close();
+        outputAudioContextRef.current?.close();
+
+        audioSourcesRef.current.forEach(source => source.stop());
+        audioSourcesRef.current.clear();
+
         setIsSessionActive(false);
         setVideoDevices([]);
-        setSelectedDeviceId(null);
-        setResponseText('');
-        setSpokenText('');
-    };
-
-    const handleSwitchCamera = () => {
-        if (videoDevices.length > 1 && selectedDeviceId) {
-            const currentIndex = videoDevices.findIndex(device => device.deviceId === selectedDeviceId);
-            const nextIndex = (currentIndex + 1) % videoDevices.length;
-            setSelectedDeviceId(videoDevices[nextIndex].deviceId);
-        }
-    };
-
-    const handleToggleListening = () => {
-        const recognition = recognitionRef.current;
-        if (recognition) {
-            if (isListening) {
-                recognition.stop();
-            } else {
-                 setSpokenText('');
-                 setResponseText('');
-                 setError(null);
-                 setLimitError(null);
-                 recognition.start();
-            }
-        }
-    };
-
-    const captureAndAsk = useCallback(async () => {
-        if (!videoRef.current || !canvasRef.current || !spokenText.trim()) return;
-        
+        setSelectedDeviceId('');
+        setTranscriptionHistory([]);
+        nextStartTimeRef.current = 0;
+    }, []);
+    
+    const startSession = async () => {
+        setError(null);
+        setLimitError(null);
         if (!canUseFeature('visualAssistant')) {
             setLimitError("You don't have enough credits for this feature (10 required).");
             return;
         }
 
-        setIsLoading(true);
-        setResponseText('');
-        setError(null);
-        setLimitError(null);
-        
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d')?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-        
-        const imageBase64 = canvas.toDataURL('image/jpeg');
-
         try {
-            const response = await getLiveResponse(spokenText, imageBase64, outputLanguage);
-            setResponseText(response);
-            if (response) {
-                playAudio(response);
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            streamRef.current = stream; // Keep the full stream ref for audio
+            
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoInputs = devices.filter(d => d.kind === 'videoinput');
+            setVideoDevices(videoInputs);
+            const initialDeviceId = videoInputs.length > 0 ? videoInputs[0].deviceId : '';
+            setSelectedDeviceId(initialDeviceId);
+            if (videoRef.current) {
+                 videoRef.current.srcObject = new MediaStream(stream.getVideoTracks());
             }
+
+            // Init Audio Contexts
+            inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+            outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+            
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            sessionPromiseRef.current = ai.live.connect({
+                model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+                config: {
+                    responseModalities: [Modality.AUDIO],
+                    inputAudioTranscription: {},
+                    outputAudioTranscription: {},
+                    systemInstruction: `You are a helpful visual assistant. Your responses will be in ${language}. Be concise.`
+                },
+                callbacks: {
+                    onopen: () => {
+                        // Audio Input Streaming
+                        const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
+                        mediaStreamSourceRef.current = source;
+                        const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
+                        scriptProcessorRef.current = scriptProcessor;
+                        scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
+                            const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+                            const pcmBlob = createBlob(inputData);
+                            sessionPromiseRef.current?.then((session) => {
+                                session.sendRealtimeInput({ media: pcmBlob });
+                            });
+                        };
+                        source.connect(scriptProcessor);
+                        scriptProcessor.connect(inputAudioContextRef.current!.destination);
+
+                        // Video Input Streaming
+                        frameIntervalRef.current = window.setInterval(() => {
+                            if (videoRef.current && canvasRef.current) {
+                                const video = videoRef.current;
+                                const canvas = canvasRef.current;
+                                canvas.width = video.videoWidth;
+                                canvas.height = video.videoHeight;
+                                canvas.getContext('2d')?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+                                canvas.toBlob(async (blob) => {
+                                    if (blob) {
+                                        const base64Data = await blobToBase64(blob);
+                                        sessionPromiseRef.current?.then((session) => {
+                                            session.sendRealtimeInput({ media: { data: base64Data, mimeType: 'image/jpeg' } });
+                                        });
+                                    }
+                                }, 'image/jpeg', 0.7);
+                            }
+                        }, 500); // 2 FPS
+                    },
+                    onmessage: async (message: LiveServerMessage) => {
+                        // Handle Transcription
+                        const { inputTranscription, outputTranscription, turnComplete } = message.serverContent ?? {};
+                        setTranscriptionHistory(prev => {
+                            let history = [...prev];
+                            if (inputTranscription) {
+                                const last = history[history.length - 1];
+                                if (last?.role === 'user' && !last.isFinal) {
+                                    last.text += inputTranscription.text;
+                                } else {
+                                    history.push({ role: 'user', text: inputTranscription.text, isFinal: false });
+                                }
+                            }
+                            if (outputTranscription) {
+                                 const last = history[history.length - 1];
+                                if (last?.role === 'model' && !last.isFinal) {
+                                    last.text += outputTranscription.text;
+                                } else {
+                                    history.push({ role: 'model', text: outputTranscription.text, isFinal: false });
+                                }
+                            }
+                            if (turnComplete) {
+                                history = history.map(t => ({...t, isFinal: true}));
+                            }
+                            return history;
+                        });
+
+                        // Handle Audio Output
+                        const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+                        if (base64Audio && outputAudioContextRef.current) {
+                            const ctx = outputAudioContextRef.current;
+                            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
+                            const audioBuffer = await decodeAudioData(decode(base64Audio), ctx, 24000, 1);
+                            const source = ctx.createBufferSource();
+                            source.buffer = audioBuffer;
+                            source.connect(ctx.destination);
+                            source.addEventListener('ended', () => { audioSourcesRef.current.delete(source); });
+                            source.start(nextStartTimeRef.current);
+                            nextStartTimeRef.current += audioBuffer.duration;
+                            audioSourcesRef.current.add(source);
+                        }
+                    },
+                    onerror: (e: ErrorEvent) => {
+                        console.error('Session error', e);
+                        setError('A session error occurred. Please restart.');
+                        stopSession();
+                    },
+                    onclose: () => {
+                        console.log('Session closed');
+                    },
+                }
+            });
+
             useFeature('visualAssistant');
+            setIsSessionActive(true);
         } catch (err) {
-            console.error("Failed to get live response", err);
-            setError("Sorry, I couldn't process that. Please try again.");
-        } finally {
-            setIsLoading(false);
+            console.error('Error accessing media devices.', err);
+            setError('Could not access camera/microphone. Please grant permissions and try again.');
         }
-
-    }, [spokenText, outputLanguage, canUseFeature, useFeature]);
-
-    const playAudio = async (text: string) => {
-        if (!audioContextRef.current) return;
-        if (isPlaying) {
-            audioSourceRef.current?.stop();
-            setIsPlaying(false);
-        }
-        try {
-            const audioData = await generateSpeech(text);
-            const audioBuffer = await decodeAudioData(decode(audioData), audioContextRef.current, 24000, 1);
-            const source = audioContextRef.current.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(audioContextRef.current.destination);
-            source.onended = () => setIsPlaying(false);
-            source.start();
-            audioSourceRef.current = source;
-            setIsPlaying(true);
-        } catch (e) {
-            console.error("Failed to play audio", e);
-        }
-    }
+    };
     
-     useEffect(() => {
-        if (!isListening && spokenText.trim()) {
-            captureAndAsk();
+    useEffect(() => {
+        return () => {
+            stopSession();
+        };
+    }, [stopSession]);
+    
+    useEffect(() => {
+        if (isSessionActive && selectedDeviceId && streamRef.current) {
+            streamRef.current.getVideoTracks().forEach(track => track.stop());
+            navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: selectedDeviceId } } })
+                .then(newStream => {
+                    const newVideoTrack = newStream.getVideoTracks()[0];
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = new MediaStream([newVideoTrack]);
+                    }
+                    // Replace the video track in the main stream
+                    const oldTrack = streamRef.current!.getVideoTracks()[0];
+                    streamRef.current!.removeTrack(oldTrack);
+                    streamRef.current!.addTrack(newVideoTrack);
+                })
+                .catch(err => {
+                    console.error('Error switching camera.', err);
+                    setError('Could not switch to the selected camera.');
+                });
         }
-    }, [isListening, spokenText, captureAndAsk]);
+    }, [isSessionActive, selectedDeviceId]);
 
     return (
         <div className="h-full w-full flex flex-col bg-slate-900 text-white antialiased">
-            {/* Back Button for Mobile - absolute position */}
-            <button
+             <button
                 onClick={() => isSessionActive ? stopSession() : setActiveTool(defaultTool as ToolKey)}
                 className="lg:hidden absolute top-5 left-5 z-30 p-2 bg-black/30 rounded-full text-white hover:bg-black/50 transition-colors"
                 aria-label="Go back"
             >
                 <BackIcon />
             </button>
-
+            
             {!isSessionActive ? (
                 <div className="flex-1 flex flex-col items-center justify-center p-4">
                     <div className="bg-slate-800 p-8 rounded-2xl text-center max-w-sm shadow-lg border border-slate-700">
@@ -304,66 +317,37 @@ const VisualAssistant: React.FC = () => {
                     </div>
                 </div>
             ) : (
-                <>
-                    {/* Video container fills remaining space */}
-                    <div className="relative flex-1 w-full overflow-hidden bg-black">
-                        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover"></video>
-                        {videoDevices.length > 1 && (
-                            <button
-                                onClick={handleSwitchCamera}
-                                className="absolute top-5 right-5 z-10 p-2 bg-black/40 rounded-full text-white hover:bg-black/60 transition-colors"
-                                aria-label="Switch Camera"
-                            >
-                                <SwitchCameraIcon className="w-5 h-5" />
-                            </button>
-                        )}
-                        <canvas ref={canvasRef} className="hidden"></canvas>
-                        {isListening && <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center"><div className="w-16 h-16 border-4 border-red-500 rounded-full animate-pulse"></div></div>}
-                        
-                         {(isLoading || responseText || spokenText) && (
-                            <div className="absolute bottom-4 left-4 right-4 z-10 p-4 bg-black/50 backdrop-blur-sm rounded-lg max-h-40 overflow-y-auto scrollbar-thin">
-                                {spokenText && <p className="text-gray-300 italic mb-2 text-sm">You asked: "{spokenText}"</p>}
-                                {isLoading && <Spinner />}
-                                {responseText && (
-                                    <div className="prose prose-sm prose-invert max-w-none whitespace-pre-wrap text-white">
-                                        {responseText}
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                <div className="relative flex-1 w-full overflow-hidden bg-black flex flex-col">
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover absolute inset-0"></video>
+                    <canvas ref={canvasRef} className="hidden"></canvas>
+
+                    {videoDevices.length > 1 && (
+                        <button
+                            onClick={() => {
+                                const currentIndex = videoDevices.findIndex(d => d.deviceId === selectedDeviceId);
+                                const nextIndex = (currentIndex + 1) % videoDevices.length;
+                                setSelectedDeviceId(videoDevices[nextIndex].deviceId);
+                            }}
+                            className="absolute top-5 right-5 z-20 p-2 bg-black/40 rounded-full text-white hover:bg-black/60 transition-colors"
+                            aria-label="Switch Camera"
+                        >
+                            <SwitchCameraIcon className="w-5 h-5" />
+                        </button>
+                    )}
+                    
+                    {/* Transcription Overlay */}
+                    <div className="absolute bottom-24 left-4 right-4 z-10 p-4 bg-black/50 backdrop-blur-sm rounded-lg max-h-48 overflow-y-auto scrollbar-thin">
+                        {transcriptionHistory.map((item, index) => (
+                           <p key={index} className={`font-medium ${item.role === 'user' ? 'text-gray-300 italic' : 'text-white'}`}>
+                               <span className="font-bold capitalize">{item.role}: </span>{item.text}
+                           </p> 
+                        ))}
                     </div>
 
-                    {/* Controls container at the bottom */}
-                    <div className="w-full p-6 pt-4 bg-slate-800 flex flex-col items-center">
-                        <div className="w-full max-w-xs space-y-4">
-                            <div>
-                                <label className="block text-center text-sm font-medium text-gray-400 mb-1">Output Language</label>
-                                <select
-                                    value={outputLanguage}
-                                    onChange={e => setOutputLanguage(e.target.value as Language)}
-                                    className="appearance-none w-full bg-slate-700/60 border border-slate-600 text-white text-center rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                >
-                                    <option value="en">English</option>
-                                    <option value="hi">Hindi</option>
-                                    <option value="es">Spanish</option>
-                                    <option value="fr">French</option>
-                                </select>
-                            </div>
-                            
-                            <div className="flex flex-col items-center space-y-2 pt-2">
-                                <button
-                                    onClick={handleToggleListening}
-                                    className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-purple-500 ${isListening ? 'bg-red-500 scale-110 shadow-lg shadow-red-500/50' : 'bg-purple-600 hover:bg-purple-700 shadow-lg shadow-[0_0_15px_5px_rgba(168,85,247,0.4)]'}`}
-                                >
-                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-9 w-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-                                </button>
-                                <p className="text-sm text-gray-400 h-5">{isListening ? 'Listening...' : 'Tap to Speak'}</p>
-                            </div>
-                            
-                            <Button onClick={stopSession} className="w-full">End Session</Button>
-                        </div>
+                    <div className="w-full mt-auto p-6 pt-4 bg-gradient-to-t from-slate-900/80 via-slate-900/50 to-transparent flex flex-col items-center z-10">
+                       <Button onClick={stopSession} className="w-full max-w-xs from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 hover:shadow-rose-500/50">End Session</Button>
                     </div>
-                </>
+                </div>
             )}
         </div>
     );
