@@ -1,54 +1,28 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState } from 'react';
 import { AppContext } from '../contexts/AppContext';
 import { useTranslations } from '../hooks/useTranslations';
-import { BookOpenIcon, AcademicCapIcon } from './icons';
+import { BookOpenIcon, AcademicCapIcon, GoogleIcon } from './icons';
 import { TOOLS } from '../constants';
-import { CLIENT_ID, decodeJwtResponse } from '../services/googleAuthService';
-import { User } from '../types';
-
-// Inform TypeScript about the global 'google' object from the GSI script
-declare const google: any;
+import { signInWithGoogle } from '../services/authService';
+import Button from './common/Button';
 
 const HomeScreen: React.FC = () => {
-  const { user, setUser, setUserRole, theme } = useContext(AppContext);
+  const { user, setUserRole } = useContext(AppContext);
   const { t } = useTranslations();
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
-  useEffect(() => {
-    // If user is already signed in, or the google script isn't loaded, do nothing.
-    if (user || typeof google === 'undefined') {
-      return;
+  const handleSignIn = async () => {
+    setIsSigningIn(true);
+    try {
+      await signInWithGoogle();
+      // The onAuthStateChanged listener in AppContext will handle setting the user.
+    } catch (error) {
+      console.error("Sign in failed from HomeScreen", error);
+      // Optionally, show an error message to the user here.
+    } finally {
+      setIsSigningIn(false);
     }
-
-    const handleCredentialResponse = (response: any) => {
-        console.log('Google Sign-In successful, handling callback...');
-        const userData = decodeJwtResponse(response.credential);
-        if (userData) {
-            const appUser: User = {
-                name: userData.name,
-                email: userData.email,
-                picture: userData.picture,
-            };
-            setUser(appUser);
-        } else {
-            console.error("Failed to decode user data from token.");
-        }
-    };
-
-    google.accounts.id.initialize({
-      client_id: CLIENT_ID,
-      callback: handleCredentialResponse,
-      use_fedcm_for_prompt: false,
-    });
-
-    const signInButtonContainer = document.getElementById('google-signin-button');
-    if (signInButtonContainer) {
-        google.accounts.id.renderButton(
-          signInButtonContainer,
-          { theme: theme === 'dark' ? 'filled_black' : 'outline', size: 'large', type: 'standard', shape: 'pill', text: 'continue_with' }
-        );
-    }
-
-  }, [user, setUser, theme]);
+  };
 
   const toolArray = Object.values(TOOLS);
 
@@ -62,8 +36,11 @@ const HomeScreen: React.FC = () => {
           Your AI-powered educational assistant. Please sign in to begin.
         </p>
       </div>
-      <div className="relative z-10 w-full max-w-xs animate-fade-in-up flex justify-center" style={{ animationDelay: '0.5s' }}>
-        <div id="google-signin-button"></div>
+      <div className="relative z-10 w-full max-w-xs animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
+        <Button onClick={handleSignIn} isLoading={isSigningIn} className="w-full">
+            <GoogleIcon className="w-6 h-6 mr-3" />
+            Continue with Google
+        </Button>
       </div>
     </>
   );
