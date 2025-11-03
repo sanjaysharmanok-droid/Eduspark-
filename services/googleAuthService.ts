@@ -1,31 +1,37 @@
 import { User } from '../types';
 
-// This is a mock authentication service.
-// In a real application, this would integrate with Google's Identity Services SDK.
+// This service now integrates with Google's Identity Services SDK.
+declare const google: any; // Inform TypeScript about the global 'google' object from the GSI script
 
-export const signIn = async (): Promise<User> => {
-  console.log('Simulating Google Sign-In...');
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  const names = ['Alex Doe', 'Jane Smith', 'Peter Jones', 'Mary Williams', 'Sam Wilson'];
-  const randomName = names[Math.floor(Math.random() * names.length)];
-  const email = `${randomName.toLowerCase().replace(' ', '.')}@example.com`;
+export const CLIENT_ID = "107395952282-2g7hj5cph4gmsomdjf138incu8al0nt3.apps.googleusercontent.com";
 
-  // Return a mock user object
-  const mockUser: User = {
-    name: randomName,
-    email: email,
-    picture: `https://api.dicebear.com/8.x/avataaars/svg?seed=${email}`,
-  };
+/**
+ * Decodes the JWT token from Google Sign-In to get user profile.
+ * @param token The JWT credential string.
+ * @returns The user's profile information.
+ */
+export function decodeJwtResponse(token: string): any {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
 
-  console.log('Sign-In successful:', mockUser);
-  return mockUser;
-};
+        return JSON.parse(jsonPayload);
+    } catch (error) {
+        console.error("Error decoding JWT", error);
+        return null;
+    }
+}
 
 export const signOut = async (): Promise<void> => {
-  console.log('Simulating Sign-Out...');
-  // In a real app, you would call the Google Sign-Out method here.
-  await new Promise(resolve => setTimeout(resolve, 200));
+  console.log('Signing out from Google...');
+  if (typeof google !== 'undefined') {
+      // This prevents the One Tap prompt from showing automatically on the next visit.
+      google.accounts.id.disableAutoSelect();
+  }
   console.log('Sign-Out successful.');
+  // The AppContext handles clearing local user state.
+  return Promise.resolve();
 };

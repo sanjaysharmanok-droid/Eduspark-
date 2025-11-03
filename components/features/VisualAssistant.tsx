@@ -5,10 +5,8 @@ import Spinner from '../common/Spinner';
 import Button from '../common/Button';
 import { Language } from '../../types';
 import { useTranslations } from '../../hooks/useTranslations';
-import Select from '../common/Select';
 import { AppContext } from '../../contexts/AppContext';
 import UpgradePrompt from '../common/UpgradePrompt';
-import AdBanner from '../common/AdBanner';
 import { ToolKey } from '../../constants';
 import { SwitchCameraIcon } from '../icons';
 
@@ -74,8 +72,8 @@ const VisualAssistant: React.FC = () => {
     const recognitionRef = useRef<any>(null);
 
 
-    const { t, language: contextLanguage } = useTranslations();
-    const { subscriptionTier, canUseFeature, useFeature, setActiveTool, userRole } = useContext(AppContext);
+    const { language: contextLanguage } = useTranslations();
+    const { canUseFeature, useFeature, setActiveTool, userRole } = useContext(AppContext);
     const [outputLanguage, setOutputLanguage] = useState<Language>(contextLanguage);
 
     const defaultTool = userRole === 'teacher' ? 'lessonPlanner' : 'homeworkHelper';
@@ -93,7 +91,7 @@ const VisualAssistant: React.FC = () => {
 
             const constraints = {
                 video: { deviceId: { exact: selectedDeviceId } },
-                audio: true
+                audio: false
             };
 
             navigator.mediaDevices.getUserMedia(constraints)
@@ -283,31 +281,37 @@ const VisualAssistant: React.FC = () => {
     }, [isListening, spokenText, captureAndAsk]);
 
     return (
-        <div className="space-y-6 h-full flex flex-col relative">
-            <button 
-                onClick={() => setActiveTool(defaultTool as ToolKey)} 
-                className="lg:hidden absolute top-5 left-5 z-20 p-2 bg-black/20 rounded-full text-white hover:bg-black/40 transition-colors"
+        <div className="h-full w-full flex flex-col bg-slate-900 text-white antialiased">
+            {/* Back Button for Mobile - absolute position */}
+            <button
+                onClick={() => isSessionActive ? stopSession() : setActiveTool(defaultTool as ToolKey)}
+                className="lg:hidden absolute top-5 left-5 z-30 p-2 bg-black/30 rounded-full text-white hover:bg-black/50 transition-colors"
                 aria-label="Go back"
             >
                 <BackIcon />
             </button>
 
             {!isSessionActive ? (
-                <div className="flex-1 flex flex-col items-center justify-center">
-                    <Card className="text-center">
-                        <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Start a Visual Session</h3>
-                        <p className="mb-6 text-gray-600 dark:text-gray-300">Enable your camera and microphone to ask questions about what you see.</p>
+                <div className="flex-1 flex flex-col items-center justify-center p-4">
+                    <div className="bg-slate-800 p-8 rounded-2xl text-center max-w-sm shadow-lg border border-slate-700">
+                        <h3 className="text-xl font-semibold mb-4 text-white">Start a Visual Session</h3>
+                        <p className="mb-6 text-gray-300">Enable your camera and microphone to ask questions about what you see.</p>
                         <Button onClick={startSession}>Start Session</Button>
-                    </Card>
+                        <div className="mt-4 space-y-2">
+                            {limitError && <UpgradePrompt message={limitError} />}
+                            {error && <div className="p-4 rounded-lg bg-red-900/50 border border-red-500/50 text-red-200 text-sm"><p>{error}</p></div>}
+                        </div>
+                    </div>
                 </div>
             ) : (
-                <Card className="flex-1 flex flex-col">
-                    <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden mb-4 border border-gray-300 dark:border-white/20">
+                <>
+                    {/* Video container fills remaining space */}
+                    <div className="relative flex-1 w-full overflow-hidden bg-black">
                         <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover"></video>
                         {videoDevices.length > 1 && (
                             <button
                                 onClick={handleSwitchCamera}
-                                className="absolute bottom-3 right-3 z-10 p-2 bg-black/40 rounded-full text-white hover:bg-black/60 transition-colors"
+                                className="absolute top-5 right-5 z-10 p-2 bg-black/40 rounded-full text-white hover:bg-black/60 transition-colors"
                                 aria-label="Switch Camera"
                             >
                                 <SwitchCameraIcon className="w-5 h-5" />
@@ -315,45 +319,52 @@ const VisualAssistant: React.FC = () => {
                         )}
                         <canvas ref={canvasRef} className="hidden"></canvas>
                         {isListening && <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center"><div className="w-16 h-16 border-4 border-red-500 rounded-full animate-pulse"></div></div>}
+                        
+                         {(isLoading || responseText || spokenText) && (
+                            <div className="absolute bottom-4 left-4 right-4 z-10 p-4 bg-black/50 backdrop-blur-sm rounded-lg max-h-40 overflow-y-auto scrollbar-thin">
+                                {spokenText && <p className="text-gray-300 italic mb-2 text-sm">You asked: "{spokenText}"</p>}
+                                {isLoading && <Spinner />}
+                                {responseText && (
+                                    <div className="prose prose-sm prose-invert max-w-none whitespace-pre-wrap text-white">
+                                        {responseText}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
-                    
-                    <div className="flex flex-col items-center space-y-4">
-                        <Select label={t('outputLanguage')} id="output-language" value={outputLanguage} onChange={e => setOutputLanguage(e.target.value as Language)}>
-                            <option value="en">English</option>
-                            <option value="hi">Hindi</option>
-                            <option value="es">Spanish</option>
-                            <option value="fr">French</option>
-                        </Select>
 
-                        <button
-                            onClick={handleToggleListening}
-                            className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-200 focus:outline-none ring-offset-gray-100 dark:ring-offset-gray-900 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 ${isListening ? 'bg-red-500 scale-110 shadow-lg shadow-red-500/50' : 'bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/50'}`}
-                        >
-                           <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-                        </button>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 h-6">{isListening ? 'Listening... Tap to Stop' : 'Tap to Speak'}</p>
-                        <Button onClick={stopSession} className="bg-gray-600 dark:bg-white/10 hover:bg-gray-700 dark:hover:bg-white/20">End Session</Button>
+                    {/* Controls container at the bottom */}
+                    <div className="w-full p-6 pt-4 bg-slate-800 flex flex-col items-center">
+                        <div className="w-full max-w-xs space-y-4">
+                            <div>
+                                <label className="block text-center text-sm font-medium text-gray-400 mb-1">Output Language</label>
+                                <select
+                                    value={outputLanguage}
+                                    onChange={e => setOutputLanguage(e.target.value as Language)}
+                                    className="appearance-none w-full bg-slate-700/60 border border-slate-600 text-white text-center rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    <option value="en">English</option>
+                                    <option value="hi">Hindi</option>
+                                    <option value="es">Spanish</option>
+                                    <option value="fr">French</option>
+                                </select>
+                            </div>
+                            
+                            <div className="flex flex-col items-center space-y-2 pt-2">
+                                <button
+                                    onClick={handleToggleListening}
+                                    className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-purple-500 ${isListening ? 'bg-red-500 scale-110 shadow-lg shadow-red-500/50' : 'bg-purple-600 hover:bg-purple-700 shadow-lg shadow-[0_0_15px_5px_rgba(168,85,247,0.4)]'}`}
+                                >
+                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-9 w-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                                </button>
+                                <p className="text-sm text-gray-400 h-5">{isListening ? 'Listening...' : 'Tap to Speak'}</p>
+                            </div>
+                            
+                            <Button onClick={stopSession} className="w-full">End Session</Button>
+                        </div>
                     </div>
-                </Card>
+                </>
             )}
-
-            {limitError && <UpgradePrompt message={limitError} />}
-            {error && <Card className="bg-red-100 dark:bg-red-900/50 border-red-300 dark:border-red-500/50 text-red-700 dark:text-red-200"><p>{error}</p></Card>}
-            
-            {(subscriptionTier === 'free' || subscriptionTier === 'silver') && isSessionActive && <AdBanner />}
-
-            {(isLoading || responseText || spokenText) && (
-                <Card>
-                    {spokenText && <p className="text-gray-500 dark:text-gray-400 italic mb-4">You asked: "{spokenText}"</p>}
-                    {isLoading && <Spinner />}
-                    {responseText && (
-                         <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
-                            {responseText}
-                         </div>
-                    )}
-                </Card>
-            )}
-
         </div>
     );
 };

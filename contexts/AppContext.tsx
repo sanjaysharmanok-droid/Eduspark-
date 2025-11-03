@@ -17,7 +17,7 @@ const DAILY_LIMITS = {
 
 interface AppContextType {
   user: User | null;
-  signIn: () => Promise<void>;
+  setUser: (user: User | null) => void;
   signOut: () => Promise<void>;
   userRole: UserRole | null;
   setUserRole: (role: UserRole | null) => void;
@@ -186,11 +186,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => { localStorage.setItem('usage', JSON.stringify(usage)); }, [usage]);
   useEffect(() => { if (userRole) setActiveTool(defaultTool); }, [userRole, defaultTool]);
 
-  const signIn = useCallback(async () => {
-    const userData = await googleAuthService.signIn();
-    setUser(userData);
-  }, []);
-
   const signOut = useCallback(async () => {
     await googleAuthService.signOut();
     setUser(null);
@@ -243,15 +238,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [usage]);
 
   const value = useMemo(() => ({
-    user, signIn, signOut, userRole, setUserRole, theme, toggleTheme, language, setLanguage,
+    user, setUser, signOut, userRole, setUserRole, theme, toggleTheme, language, setLanguage,
     lessonLists, addLessonList, addTopicToLessonList, quizAttempts, addQuizAttempt,
     activeQuizTopic, setActiveQuizTopic, activeTool, setActiveTool,
     subscriptionTier, credits, usage, isSubscriptionModalOpen, setIsSubscriptionModalOpen,
     upgradeSubscription, canUseFeature, useFeature
   }), [
-    user, signIn, signOut, userRole, theme, language, lessonLists, quizAttempts, activeQuizTopic, activeTool,
+    user, signOut, userRole, theme, language, lessonLists, quizAttempts, activeQuizTopic, activeTool,
     subscriptionTier, credits, usage, isSubscriptionModalOpen,
-    setUserRole, toggleTheme, setLanguage, addLessonList, addTopicToLessonList, addQuizAttempt,
+    setUser, setUserRole, toggleTheme, setLanguage, addLessonList, addTopicToLessonList, addQuizAttempt,
     setActiveTool, upgradeSubscription, canUseFeature, useFeature
   ]);
 

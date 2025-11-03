@@ -1,24 +1,54 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../contexts/AppContext';
 import { useTranslations } from '../hooks/useTranslations';
-import { BookOpenIcon, AcademicCapIcon, GoogleIcon } from './icons';
+import { BookOpenIcon, AcademicCapIcon } from './icons';
 import { TOOLS } from '../constants';
+import { CLIENT_ID, decodeJwtResponse } from '../services/googleAuthService';
+import { User } from '../types';
+
+// Inform TypeScript about the global 'google' object from the GSI script
+declare const google: any;
 
 const HomeScreen: React.FC = () => {
-  const { user, signIn, setUserRole } = useContext(AppContext);
+  const { user, setUser, setUserRole, theme } = useContext(AppContext);
   const { t } = useTranslations();
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignIn = async () => {
-    setIsLoading(true);
-    try {
-      await signIn();
-    } catch (error) {
-      console.error("Sign in failed", error);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    // If user is already signed in, or the google script isn't loaded, do nothing.
+    if (user || typeof google === 'undefined') {
+      return;
     }
-  };
+
+    const handleCredentialResponse = (response: any) => {
+        console.log('Google Sign-In successful, handling callback...');
+        const userData = decodeJwtResponse(response.credential);
+        if (userData) {
+            const appUser: User = {
+                name: userData.name,
+                email: userData.email,
+                picture: userData.picture,
+            };
+            setUser(appUser);
+        } else {
+            console.error("Failed to decode user data from token.");
+        }
+    };
+
+    google.accounts.id.initialize({
+      client_id: CLIENT_ID,
+      callback: handleCredentialResponse,
+      use_fedcm_for_prompt: false,
+    });
+
+    const signInButtonContainer = document.getElementById('google-signin-button');
+    if (signInButtonContainer) {
+        google.accounts.id.renderButton(
+          signInButtonContainer,
+          { theme: theme === 'dark' ? 'filled_black' : 'outline', size: 'large', type: 'standard', shape: 'pill', text: 'continue_with' }
+        );
+    }
+
+  }, [user, setUser, theme]);
 
   const toolArray = Object.values(TOOLS);
 
@@ -32,24 +62,8 @@ const HomeScreen: React.FC = () => {
           Your AI-powered educational assistant. Please sign in to begin.
         </p>
       </div>
-      <div className="relative z-10 w-full max-w-xs animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
-          <button
-              onClick={handleSignIn}
-              disabled={isLoading}
-              className="w-full flex items-center justify-center px-6 py-4 glass-card rounded-xl shadow-md hover:bg-white/80 dark:hover:bg-white/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-900 focus:ring-indigo-500"
-          >
-              {isLoading ? (
-                  <svg className="animate-spin h-6 w-6 text-indigo-600 dark:text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-              ) : (
-                  <>
-                      <GoogleIcon className="h-6 w-6 mr-3" />
-                      <span className="text-lg font-medium text-gray-800 dark:text-white">Sign in with Google</span>
-                  </>
-              )}
-          </button>
+      <div className="relative z-10 w-full max-w-xs animate-fade-in-up flex justify-center" style={{ animationDelay: '0.5s' }}>
+        <div id="google-signin-button"></div>
       </div>
     </>
   );
