@@ -8,11 +8,15 @@ export const signIn = async (): Promise<User> => {
   // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 500));
   
+  const names = ['Alex Doe', 'Jane Smith', 'Peter Jones', 'Mary Williams', 'Sam Wilson'];
+  const randomName = names[Math.floor(Math.random() * names.length)];
+  const email = `${randomName.toLowerCase().replace(' ', '.')}@example.com`;
+
   // Return a mock user object
   const mockUser: User = {
-    name: 'Alex Doe',
-    email: 'alex.doe@example.com',
-    picture: `https://api.dicebear.com/8.x/avataaars/svg?seed=alexdoe`,
+    name: randomName,
+    email: email,
+    picture: `https://api.dicebear.com/8.x/avataaars/svg?seed=${email}`,
   };
 
   console.log('Sign-In successful:', mockUser);

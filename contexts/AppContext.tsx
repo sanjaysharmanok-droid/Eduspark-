@@ -51,16 +51,38 @@ const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem('user');
-    return storedUser ? JSON.parse(storedUser) : null;
+    try {
+      const storedUser = localStorage.getItem('user');
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch (error) {
+      console.error('Failed to parse user from localStorage', error);
+      localStorage.removeItem('user');
+      return null;
+    }
   });
   const [userRole, setUserRoleState] = useState<UserRole | null>(() => (localStorage.getItem('userRole') as UserRole) || null);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
   const [language, setLanguageState] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'en');
   
   // State for library and reports
-  const [lessonLists, setLessonLists] = useState<LessonList[]>(() => JSON.parse(localStorage.getItem('lessonLists') || '[]'));
-  const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>(() => JSON.parse(localStorage.getItem('quizAttempts') || '[]'));
+  const [lessonLists, setLessonLists] = useState<LessonList[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('lessonLists') || '[]');
+    } catch (error) {
+      console.error('Failed to parse lessonLists from localStorage', error);
+      localStorage.removeItem('lessonLists');
+      return [];
+    }
+  });
+  const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('quizAttempts') || '[]');
+    } catch (error) {
+      console.error('Failed to parse quizAttempts from localStorage', error);
+      localStorage.removeItem('quizAttempts');
+      return [];
+    }
+  });
   const [activeQuizTopic, setActiveQuizTopic] = useState<string | null>(null);
 
   // Active tool state management
@@ -72,7 +94,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>(() => (localStorage.getItem('subscriptionTier') as SubscriptionTier) || 'free');
   const [credits, setCredits] = useState<number>(() => parseInt(localStorage.getItem('credits') || '0', 10));
   const [usage, setUsage] = useState<Usage>(() => {
-    const storedUsage = localStorage.getItem('usage');
     const defaultUsage = { 
         date: getTodayDateString(), 
         quizQuestions: 0, 
@@ -82,7 +103,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         lessonPlans: 0,
         activities: 0
     };
-    return storedUsage ? { ...defaultUsage, ...JSON.parse(storedUsage) } : defaultUsage;
+    try {
+      const storedUsage = localStorage.getItem('usage');
+      return storedUsage ? { ...defaultUsage, ...JSON.parse(storedUsage) } : defaultUsage;
+    } catch (error) {
+      console.error('Failed to parse usage from localStorage', error);
+      localStorage.removeItem('usage');
+      return defaultUsage;
+    }
   });
 
   // Effect to initialize a new user
