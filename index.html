@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduSpark AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0"
+  }
+}
+</script>
+<style>
+  body {
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease-in-out;
+  }
+  
+  .glass-card {
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    transition: background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+  }
+  
+  .dark .glass-card {
+     background: rgba(29, 39, 58, 0.5); /* A semi-transparent dark slate */
+     border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  #background-animation {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    overflow: hidden;
+  }
+
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.5;
+    filter: blur(60px);
+    will-change: transform;
+  }
+
+  .blob-1 {
+    width: 35vw;
+    height: 35vw;
+    min-width: 300px;
+    min-height: 300px;
+    background: #6d28d9; /* Purple */
+    animation: animate1 25s infinite alternate;
+  }
+
+  .blob-2 {
+    width: 30vw;
+    height: 30vw;
+    min-width: 250px;
+    min-height: 250px;
+    background: #4f46e5; /* Indigo */
+    animation: animate2 30s infinite alternate;
+  }
+
+  .blob-3 {
+    width: 25vw;
+    height: 25vw;
+    min-width: 200px;
+    min-height: 200px;
+    background: #10b981; /* Green */
+    animation: animate3 20s infinite alternate;
+  }
+
+  @keyframes animate1 {
+    0% { transform: translate(-10%, -10%) scale(1); }
+    100% { transform: translate(60vw, 70vh) scale(1.2) rotate(180deg); }
+  }
+
+  @keyframes animate2 {
+    0% { transform: translate(80vw, 80vh) scale(1); }
+    100% { transform: translate(10vw, -20vh) scale(0.8) rotate(90deg); }
+  }
+
+  @keyframes animate3 {
+    0% { transform: translate(10vw, 70vh) scale(0.9); }
+    100% { transform: translate(70vw, 10vh) scale(1.1) rotate(-90deg); }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.8s ease-out forwards;
+    opacity: 0;
+  }
+  
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Custom scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(139, 92, 246, 0.5) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(139, 92, 246, 0.5);
+    border-radius: 10px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+</style>
+</head>
+<body class="bg-gray-100 dark:bg-slate-900">
+  <div id="background-animation">
+    <div class="absolute inset-0 bg-gray-100/30 dark:bg-slate-900/60"></div>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+  <div id="root"></div>
+</body>
+</html>

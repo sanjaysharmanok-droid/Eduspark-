@@ -1,0 +1,8 @@
+{
+  "name": "EduSpark AI",
+  "description": "An AI-powered educational assistant for teachers and students. Create lesson plans, get homework help, explore new topics, and manage daily school activities with ease.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
