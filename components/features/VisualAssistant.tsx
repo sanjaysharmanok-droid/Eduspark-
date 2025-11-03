@@ -9,6 +9,8 @@ import Select from '../common/Select';
 import { AppContext } from '../../contexts/AppContext';
 import UpgradePrompt from '../common/UpgradePrompt';
 import AdBanner from '../common/AdBanner';
+import { ToolKey } from '../../constants';
+import { SwitchCameraIcon } from '../icons';
 
 // Add SpeechRecognition to the window interface
 interface IWindow extends Window {
@@ -46,6 +48,11 @@ async function decodeAudioData(
 }
 // #endregion
 
+const BackIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+    </svg>
+);
 
 const VisualAssistant: React.FC = () => {
     const [isSessionActive, setIsSessionActive] = useState(false);
@@ -56,6 +63,8 @@ const VisualAssistant: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [limitError, setLimitError] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+    const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -66,26 +75,50 @@ const VisualAssistant: React.FC = () => {
 
 
     const { t, language: contextLanguage } = useTranslations();
-    const { subscriptionTier, canUseFeature, useFeature } = useContext(AppContext);
+    const { subscriptionTier, canUseFeature, useFeature, setActiveTool, userRole } = useContext(AppContext);
     const [outputLanguage, setOutputLanguage] = useState<Language>(contextLanguage);
+
+    const defaultTool = userRole === 'teacher' ? 'lessonPlanner' : 'homeworkHelper';
 
     useEffect(() => {
         setOutputLanguage(contextLanguage);
     }, [contextLanguage]);
-
-    // This effect handles attaching the stream to the video element.
-    // It runs when the session becomes active, ensuring the video element
-    // is present in the DOM before we try to access it.
+    
     useEffect(() => {
-        if (isSessionActive && streamRef.current && videoRef.current) {
-            videoRef.current.srcObject = streamRef.current;
+        if (isSessionActive && selectedDeviceId) {
+            // Stop previous stream if it exists
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
+
+            const constraints = {
+                video: { deviceId: { exact: selectedDeviceId } },
+                audio: true
+            };
+
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+                    streamRef.current = stream;
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                    }
+                })
+                .catch(err => {
+                    console.error('Error switching camera.', err);
+                    setError('Could not access the selected camera. Please grant permissions.');
+                });
         }
-    }, [isSessionActive]);
+        
+        return () => {
+            if (streamRef.current && !isSessionActive) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+                streamRef.current = null;
+            }
+        };
+    }, [isSessionActive, selectedDeviceId]);
 
     useEffect(() => {
-        // Initialize recognition and audio context once
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-
         const { webkitSpeechRecognition, SpeechRecognition } = window as unknown as IWindow;
         const SpeechRecognitionAPI = webkitSpeechRecognition || SpeechRecognition;
         
@@ -122,11 +155,22 @@ const VisualAssistant: React.FC = () => {
             audioContextRef.current?.close();
         };
     }, []);
+
+    const getAndSetDevices = async () => {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter(device => device.kind === 'videoinput');
+        setVideoDevices(videoInputs);
+        if (videoInputs.length > 0) {
+            setSelectedDeviceId(videoInputs[0].deviceId);
+        }
+    };
     
     const startSession = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            streamRef.current = stream;
+            stream.getTracks().forEach(track => track.stop()); // Stop dummy stream immediately
+
+            await getAndSetDevices();
             setIsSessionActive(true);
             setError(null);
             setLimitError(null);
@@ -145,25 +189,32 @@ const VisualAssistant: React.FC = () => {
             videoRef.current.srcObject = null;
         }
         setIsSessionActive(false);
+        setVideoDevices([]);
+        setSelectedDeviceId(null);
         setResponseText('');
         setSpokenText('');
     };
 
-    const handleHoldToSpeak = () => {
-        const recognition = recognitionRef.current;
-        if (recognition && !isListening) {
-             setSpokenText('');
-             setResponseText('');
-             setError(null);
-             setLimitError(null);
-             recognition.start();
+    const handleSwitchCamera = () => {
+        if (videoDevices.length > 1 && selectedDeviceId) {
+            const currentIndex = videoDevices.findIndex(device => device.deviceId === selectedDeviceId);
+            const nextIndex = (currentIndex + 1) % videoDevices.length;
+            setSelectedDeviceId(videoDevices[nextIndex].deviceId);
         }
     };
 
-    const handleReleaseToStop = () => {
+    const handleToggleListening = () => {
         const recognition = recognitionRef.current;
-        if (recognition && isListening) {
-            recognition.stop();
+        if (recognition) {
+            if (isListening) {
+                recognition.stop();
+            } else {
+                 setSpokenText('');
+                 setResponseText('');
+                 setError(null);
+                 setLimitError(null);
+                 recognition.start();
+            }
         }
     };
 
@@ -231,19 +282,37 @@ const VisualAssistant: React.FC = () => {
         }
     }, [isListening, spokenText, captureAndAsk]);
 
-
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 h-full flex flex-col relative">
+            <button 
+                onClick={() => setActiveTool(defaultTool as ToolKey)} 
+                className="lg:hidden absolute top-5 left-5 z-20 p-2 bg-black/20 rounded-full text-white hover:bg-black/40 transition-colors"
+                aria-label="Go back"
+            >
+                <BackIcon />
+            </button>
+
             {!isSessionActive ? (
-                <Card className="text-center">
-                    <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Start a Visual Session</h3>
-                    <p className="mb-6 text-gray-600 dark:text-gray-300">Enable your camera and microphone to ask questions about what you see.</p>
-                    <Button onClick={startSession}>Start Session</Button>
-                </Card>
+                <div className="flex-1 flex flex-col items-center justify-center">
+                    <Card className="text-center">
+                        <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Start a Visual Session</h3>
+                        <p className="mb-6 text-gray-600 dark:text-gray-300">Enable your camera and microphone to ask questions about what you see.</p>
+                        <Button onClick={startSession}>Start Session</Button>
+                    </Card>
+                </div>
             ) : (
-                <Card>
+                <Card className="flex-1 flex flex-col">
                     <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden mb-4 border border-gray-300 dark:border-white/20">
                         <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover"></video>
+                        {videoDevices.length > 1 && (
+                            <button
+                                onClick={handleSwitchCamera}
+                                className="absolute bottom-3 right-3 z-10 p-2 bg-black/40 rounded-full text-white hover:bg-black/60 transition-colors"
+                                aria-label="Switch Camera"
+                            >
+                                <SwitchCameraIcon className="w-5 h-5" />
+                            </button>
+                        )}
                         <canvas ref={canvasRef} className="hidden"></canvas>
                         {isListening && <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center"><div className="w-16 h-16 border-4 border-red-500 rounded-full animate-pulse"></div></div>}
                     </div>
@@ -257,15 +326,12 @@ const VisualAssistant: React.FC = () => {
                         </Select>
 
                         <button
-                            onMouseDown={handleHoldToSpeak}
-                            onMouseUp={handleReleaseToStop}
-                            onTouchStart={handleHoldToSpeak}
-                            onTouchEnd={handleReleaseToStop}
+                            onClick={handleToggleListening}
                             className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-200 focus:outline-none ring-offset-gray-100 dark:ring-offset-gray-900 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 ${isListening ? 'bg-red-500 scale-110 shadow-lg shadow-red-500/50' : 'bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/50'}`}
                         >
                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
                         </button>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 h-6">{isListening ? 'Listening...' : 'Hold to Speak'}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 h-6">{isListening ? 'Listening... Tap to Stop' : 'Tap to Speak'}</p>
                         <Button onClick={stopSession} className="bg-gray-600 dark:bg-white/10 hover:bg-gray-700 dark:hover:bg-white/20">End Session</Button>
                     </div>
                 </Card>

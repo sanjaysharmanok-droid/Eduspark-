@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useContext } from 'react';
+import React, { useState, useMemo, useContext, useEffect } from 'react';
 import { AppContext } from './contexts/AppContext';
 import Sidebar from './components/Sidebar';
 import HomeScreen from './components/HomeScreen';
 import { TOOLS, ToolKey, ToolConfig } from './constants';
 import { useTranslations } from './hooks/useTranslations';
 import SubscriptionModal from './components/common/SubscriptionModal';
+import BottomNavBar from './components/common/BottomNavBar';
 
 // Dynamically import feature components
 const LessonPlanner = React.lazy(() => import('./components/features/LessonPlanner'));
@@ -19,11 +20,28 @@ const Settings = React.lazy(() => import('./components/features/Settings'));
 const MyLibrary = React.lazy(() => import('./components/features/MyLibrary'));
 const MyReports = React.lazy(() => import('./components/features/MyReports'));
 
+const useMediaQuery = (query: string) => {
+    const [matches, setMatches] = useState(false);
+    useEffect(() => {
+        const media = window.matchMedia(query);
+        if (media.matches !== matches) {
+            setMatches(media.matches);
+        }
+        const listener = () => setMatches(media.matches);
+        window.addEventListener('resize', listener);
+        return () => window.removeEventListener('resize', listener);
+    }, [matches, query]);
+    return matches;
+};
+
 
 const App: React.FC = () => {
   const { user, userRole, activeTool, setActiveTool } = useContext(AppContext);
   const { t } = useTranslations();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const isMobile = useMediaQuery('(max-width: 1023px)');
+  const isVisualAssistantActive = activeTool === 'visualAssistant' || activeTool === 'visualAssistantTeacher';
 
   const activeComponent = useMemo(() => {
     switch (activeTool) {
@@ -51,36 +69,42 @@ const App: React.FC = () => {
   if (!user || !userRole) {
     return <HomeScreen />;
   }
+  
+  const mainContentContainerClasses = isVisualAssistantActive && isMobile 
+    ? "h-full" 
+    : "max-w-5xl mx-auto p-4 sm:p-6 lg:p-8";
 
   return (
     <>
     <SubscriptionModal />
-    <div className="flex h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200">
+    <div className={`h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200 ${!(isVisualAssistantActive && isMobile) && 'flex'}`}>
       <Sidebar 
         activeTool={activeTool} 
         setActiveTool={setActiveTool} 
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
       />
-      <main className={`flex-1 overflow-y-auto scrollbar-thin transition-all duration-300 ${isSidebarCollapsed ? 'pl-24' : 'pl-72'}`}>
-        <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
-           <div className="glass-card p-6 rounded-2xl shadow-lg mb-6">
-              <div className="flex items-center space-x-4">
-                  <div className="bg-indigo-100 dark:bg-white/20 p-3 rounded-xl">
-                      {/* FIX: Add type assertion to fix cloneElement typing issue where the generic element type did not specify a className prop. */}
-                      {React.cloneElement(activeToolDetails.icon as React.ReactElement<{ className?: string }>, { className: 'h-8 w-8 text-indigo-600 dark:text-white' })}
-                  </div>
-                  <div>
-                      <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t(activeToolDetails.nameKey)}</h1>
-                      <p className="text-gray-600 dark:text-gray-300">{t(activeToolDetails.descriptionKey)}</p>
+      <main className={`flex-1 overflow-y-auto scrollbar-thin transition-all duration-300 ${isSidebarCollapsed ? 'lg:pl-24' : 'lg:pl-72'} ${!(isVisualAssistantActive && isMobile) && 'pb-24 lg:pb-0'}`}>
+        <div className={mainContentContainerClasses}>
+           {!(isVisualAssistantActive && isMobile) && (
+              <div className="glass-card p-6 rounded-2xl shadow-lg mb-6">
+                  <div className="flex items-center space-x-4">
+                      <div className="bg-indigo-100 dark:bg-white/20 p-3 rounded-xl">
+                          {React.cloneElement(activeToolDetails.icon as React.ReactElement<{ className?: string }>, { className: 'h-8 w-8 text-indigo-600 dark:text-white' })}
+                      </div>
+                      <div>
+                          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t(activeToolDetails.nameKey)}</h1>
+                          <p className="text-gray-600 dark:text-gray-300">{t(activeToolDetails.descriptionKey)}</p>
+                      </div>
                   </div>
               </div>
-          </div>
+            )}
           <React.Suspense fallback={<div className="text-center p-8 text-gray-600 dark:text-white/80">Loading Tool...</div>}>
             {activeComponent}
           </React.Suspense>
         </div>
       </main>
+      {!(isVisualAssistantActive && isMobile) && <BottomNavBar />}
     </div>
     </>
   );

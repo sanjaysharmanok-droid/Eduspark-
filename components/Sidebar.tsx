@@ -48,7 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, setActiveTool, isSidebarC
   };
 
   return (
-    <aside className={`fixed top-0 left-0 h-full glass-card flex flex-col m-4 rounded-3xl transition-all duration-300 ease-in-out z-20 ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
+    <aside className={`fixed top-0 left-0 h-full glass-card hidden lg:flex flex-col m-4 rounded-3xl transition-all duration-300 ease-in-out z-20 ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
       <div className={`flex items-center p-4 ${isSidebarCollapsed ? 'justify-center' : 'pl-4'} space-x-2 mb-6 h-16`}>
         <div className="bg-indigo-100 dark:bg-white/20 p-2 rounded-lg">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-600 dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
