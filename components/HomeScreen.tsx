@@ -2,9 +2,10 @@ import React, { useContext, useState } from 'react';
 import { AppContext } from '../contexts/AppContext';
 import { useTranslations } from '../hooks/useTranslations';
 import { BookOpenIcon, AcademicCapIcon, GoogleIcon } from './icons';
-import { TOOLS } from '../constants';
+import { TOOLS, ToolKey } from '../constants';
 import { signInWithGoogle } from '../services/authService';
 import Button from './common/Button';
+import Logo from './common/Logo';
 
 const HomeScreen: React.FC = () => {
   const { user, setUserRole } = useContext(AppContext);
@@ -24,11 +25,20 @@ const HomeScreen: React.FC = () => {
     }
   };
 
-  const toolArray = Object.values(TOOLS);
+  const featuredToolKeys: ToolKey[] = [
+    'homeworkHelper',
+    'lessonPlanner',
+    'topicExplorer',
+    'quizGenerator',
+    'presentationGenerator',
+    'visualAssistant',
+  ];
+  const featuredTools = featuredToolKeys.map(key => ({ key, ...TOOLS[key] }));
 
   const renderAuthScreen = () => (
     <>
       <div className="relative z-10 text-center mb-12 max-w-4xl mx-auto">
+        <Logo className="h-20 w-20 mx-auto mb-6 text-indigo-500 dark:text-indigo-400 animate-fade-in-up" />
         <h1 className="text-5xl sm:text-7xl font-extrabold leading-tight animate-fade-in-up bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400" style={{ animationDelay: '0.1s' }}>
           {t('homeTitle')}
         </h1>
@@ -48,6 +58,7 @@ const HomeScreen: React.FC = () => {
   const renderRoleSelection = () => (
      <>
       <div className="relative z-10 text-center mb-12 max-w-4xl mx-auto">
+        <Logo className="h-20 w-20 mx-auto mb-6 text-indigo-500 dark:text-indigo-400 animate-fade-in-up" />
         <h1 className="text-5xl sm:text-7xl font-extrabold leading-tight animate-fade-in-up bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400" style={{ animationDelay: '0.1s' }}>
           Welcome, {user?.name}!
         </h1>
@@ -95,11 +106,11 @@ const HomeScreen: React.FC = () => {
       
       {!user ? renderAuthScreen() : renderRoleSelection()}
 
-       <div className="relative z-10 w-full max-w-6xl mt-16 animate-fade-in-up" style={{ animationDelay: '0.9s' }}>
-        <h3 className="text-xl font-bold text-center text-gray-800 dark:text-gray-200 mb-6">Explore Our Tools</h3>
-        <div className="flex overflow-x-auto space-x-4 p-4 scrollbar-thin">
-          {toolArray.map((tool, index) => (
-            <div key={index} className="flex-shrink-0 w-48 glass-card rounded-xl p-4 text-center flex flex-col items-center justify-center space-y-2">
+       <div className="relative z-10 w-full max-w-4xl mt-16 animate-fade-in-up" style={{ animationDelay: '0.9s' }}>
+        <h3 className="text-xl font-bold text-center text-gray-800 dark:text-gray-200 mb-6">Discover What's Possible</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 p-4">
+          {featuredTools.map((tool) => (
+            <div key={tool.key} className="bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg rounded-2xl p-4 text-center flex flex-col items-center justify-center space-y-2 aspect-square transform hover:-translate-y-1 hover:shadow-xl transition-all duration-300 cursor-default">
               <div className="text-indigo-600 dark:text-indigo-400">{React.cloneElement(tool.icon as React.ReactElement<{ className?: string }>, { className: "h-8 w-8" })}</div>
               <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">{t(tool.nameKey)}</p>
             </div>

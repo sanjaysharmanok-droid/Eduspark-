@@ -3,6 +3,7 @@ import { UserRole, Theme, Language, User, LessonList, QuizAttempt, SavedTopic, S
 import { onAuthStateChanged, signOut as firebaseSignOut, FirebaseUser } from '../services/authService';
 import { auth } from '../services/firebase';
 import { ToolKey } from '../constants';
+import * as firestoreService from '../services/firestoreService';
 
 const VISUAL_ASSISTANT_COST = 10;
 const DAILY_LIMITS = {
@@ -26,7 +27,7 @@ interface AppContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   lessonLists: LessonList[];
-  addLessonList: (name: string) => LessonList;
+  addLessonList: (name: string) => Promise<LessonList | null>;
   addTopicToLessonList: (listId: string, topic: SavedTopic) => void;
   quizAttempts: QuizAttempt[];
   addQuizAttempt: (attempt: Omit<QuizAttempt, 'id' | 'date'>) => void;
@@ -51,149 +52,147 @@ const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [userRole, setUserRoleState] = useState<UserRole | null>(() => (localStorage.getItem('userRole') as UserRole) || null);
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const storedTheme = localStorage.getItem('theme') as Theme;
-    if (storedTheme) {
-      return storedTheme;
-    }
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-  const [language, setLanguageState] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'en');
-  
-  const [lessonLists, setLessonLists] = useState<LessonList[]>(() => JSON.parse(localStorage.getItem('lessonLists') || '[]'));
-  const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>(() => JSON.parse(localStorage.getItem('quizAttempts') || '[]'));
+  const [dataLoading, setDataLoading] = useState(true);
+
+  // App State
+  const [userRole, setUserRoleState] = useState<UserRole | null>(null);
+  const [theme, setThemeState] = useState<Theme>('light');
+  const [language, setLanguageState] = useState<Language>('en');
+  const [lessonLists, setLessonLists] = useState<LessonList[]>([]);
+  const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([]);
   const [activeQuizTopic, setActiveQuizTopic] = useState<string | null>(null);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
+  const [credits, setCredits] = useState<number>(0);
+  const [usage, setUsage] = useState<Usage>({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0 });
 
   const defaultTool = useMemo(() => (userRole === 'teacher' ? 'lessonPlanner' : 'homeworkHelper') as ToolKey, [userRole]);
   const [activeTool, setActiveTool] = useState<ToolKey>(defaultTool);
 
-  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
-  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>(() => (localStorage.getItem('subscriptionTier') as SubscriptionTier) || 'free');
-  const [credits, setCredits] = useState<number>(() => parseInt(localStorage.getItem('credits') || '0', 10));
-  const [usage, setUsage] = useState<Usage>(() => {
-    const storedUsage = localStorage.getItem('usage');
-    const defaultUsage = { 
-        date: getTodayDateString(), 
-        quizQuestions: 0, 
-        topicSearches: 0, 
-        homeworkHelps: 0,
-        presentations: 0,
-        lessonPlans: 0,
-        activities: 0
-    };
-    return storedUsage ? { ...defaultUsage, ...JSON.parse(storedUsage) } : defaultUsage;
-  });
-  
-  // Real-time authentication listener with Firebase
+  // Listen for auth changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
-        if (firebaseUser) {
-            const appUser: User = {
-                name: firebaseUser.displayName || 'User',
-                email: firebaseUser.email || '',
-                picture: firebaseUser.photoURL || '',
-            };
-            setUser(appUser);
-            // Initialize subscription for a new user
-            if (!localStorage.getItem('userInitialized')) {
-              setSubscriptionTier('free');
-              setCredits(500); // Sign-up bonus
-              setUsage({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0 });
-              localStorage.setItem('lastFreeCreditReset', new Date().toISOString());
-              localStorage.setItem('userInitialized', 'true');
-            }
-        } else {
-            setUser(null);
-            setUserRoleState(null); // Also reset role on sign out
-        }
-        setAuthLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, (fbUser: FirebaseUser | null) => {
+      setFirebaseUser(fbUser);
+      if (fbUser) {
+        const appUser: User = { name: fbUser.displayName || 'User', email: fbUser.email || '', picture: fbUser.photoURL || '' };
+        setUser(appUser);
+      } else {
+        setUser(null);
+        setDataLoading(false); // No data to load if not logged in
+      }
+      setAuthLoading(false);
     });
-
-    return () => unsubscribe(); // Cleanup the listener on component unmount
+    return () => unsubscribe();
   }, []);
-  
-  // Effect for daily/monthly resets
+
+  // Fetch data when user logs in or on initial load
   useEffect(() => {
-    const today = new Date();
-    const todayStr = getTodayDateString();
-    
-    // Daily usage reset
-    if (usage.date !== todayStr) {
-      setUsage({ date: todayStr, quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0 });
-    }
+    const fetchData = async () => {
+      if (firebaseUser) {
+        setDataLoading(true);
+        let userData = await firestoreService.getUserData(firebaseUser.uid);
+        if (!userData) {
+          userData = await firestoreService.createUserProfileDocument(firebaseUser);
+        }
 
-    const lastResetStr = localStorage.getItem('lastCreditReset') || new Date(0).toISOString();
-    const lastReset = new Date(lastResetStr);
+        if (userData) {
+          // Set state from Firestore data
+          setUserRoleState(userData.settings.role || null);
+          setThemeState(userData.settings.theme || 'light');
+          setLanguageState(userData.settings.language || 'en');
+          setSubscriptionTier(userData.subscription.tier || 'free');
+          setCredits(userData.subscription.credits || 0);
 
-    // Daily credit reset for premium users
-    if (subscriptionTier !== 'free' && lastReset.toISOString().split('T')[0] !== todayStr) {
-        const dailyCredits = subscriptionTier === 'gold' ? 100 : 30;
-        setCredits(prev => prev + dailyCredits);
-        localStorage.setItem('lastCreditReset', today.toISOString());
-    }
-
-    // Monthly credit reset for free users
-    if (subscriptionTier === 'free' && (today.getMonth() !== lastReset.getMonth() || today.getFullYear() !== lastReset.getFullYear())) {
-        setCredits(prev => prev + 100);
-        localStorage.setItem('lastCreditReset', today.toISOString());
-    }
-  }, []);
-
-
-  // Persistence and system effects
-  useEffect(() => { if (userRole) localStorage.setItem('userRole', userRole); else localStorage.removeItem('userRole'); }, [userRole]);
+          // Handle daily/monthly resets
+          const todayStr = getTodayDateString();
+          if (userData.usage.date !== todayStr) {
+            const newUsage = { ...usage, date: todayStr };
+            setUsage(newUsage);
+            firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
+          } else {
+            setUsage(userData.usage);
+          }
+          
+          // Fetch subcollections
+          const [lists, attempts] = await Promise.all([
+             firestoreService.getLessonLists(firebaseUser.uid),
+             firestoreService.getQuizAttempts(firebaseUser.uid)
+          ]);
+          setLessonLists(lists);
+          setQuizAttempts(attempts);
+        }
+        setDataLoading(false);
+      } else {
+         // Reset state on logout
+        setUserRoleState(null);
+        setThemeState('light');
+        setLessonLists([]);
+        setQuizAttempts([]);
+      }
+    };
+    fetchData();
+  }, [firebaseUser]);
+  
+  // Set theme class on body
   useEffect(() => { 
       const root = window.document.documentElement; 
       root.classList.remove('light', 'dark'); 
       root.classList.add(theme); 
   }, [theme]);
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      if (!localStorage.getItem('theme')) {
-        setThemeState(e.matches ? 'dark' : 'light');
-      }
-    };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
-  useEffect(() => { localStorage.setItem('language', language); }, [language]);
-  useEffect(() => { localStorage.setItem('lessonLists', JSON.stringify(lessonLists)); }, [lessonLists]);
-  useEffect(() => { localStorage.setItem('quizAttempts', JSON.stringify(quizAttempts)); }, [quizAttempts]);
-  useEffect(() => { localStorage.setItem('subscriptionTier', subscriptionTier); }, [subscriptionTier]);
-  useEffect(() => { localStorage.setItem('credits', credits.toString()); }, [credits]);
-  useEffect(() => { localStorage.setItem('usage', JSON.stringify(usage)); }, [usage]);
+  
+  // Update default tool when role changes
   useEffect(() => { if (userRole) setActiveTool(defaultTool); }, [userRole, defaultTool]);
 
   const signOut = useCallback(async () => {
     await firebaseSignOut();
-    // The onAuthStateChanged listener handles clearing user state.
-    // We just need to clear other app-specific state from localStorage.
-    localStorage.removeItem('userInitialized');
-    localStorage.removeItem('subscriptionTier');
-    localStorage.removeItem('credits');
-    localStorage.removeItem('usage');
-    localStorage.removeItem('theme');
+    // onAuthStateChanged listener will handle clearing user state.
   }, []);
 
-  const setUserRole = useCallback((role: UserRole | null) => setUserRoleState(role), []);
+  // --- State Modification Callbacks ---
+
+  const setUserRole = useCallback((role: UserRole | null) => {
+    setUserRoleState(role);
+    if (firebaseUser) firestoreService.updateUserData(firebaseUser.uid, { 'settings.role': role });
+  }, [firebaseUser]);
+
   const toggleTheme = useCallback(() => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
-    localStorage.setItem('theme', newTheme);
     setThemeState(newTheme);
-  }, [theme]);
-  const setLanguage = useCallback((lang: Language) => setLanguageState(lang), []);
-  const addLessonList = useCallback((name: string) => { const newList: LessonList = { id: Date.now().toString(), name, topics: [] }; setLessonLists(prev => [...prev, newList]); return newList; }, []);
-  const addTopicToLessonList = useCallback((listId: string, topic: SavedTopic) => { setLessonLists(prev => prev.map(list => list.id === listId ? { ...list, topics: [...list.topics, topic] } : list)); }, []);
-  const addQuizAttempt = useCallback((attempt: Omit<QuizAttempt, 'id' | 'date'>) => { const newAttempt: QuizAttempt = { ...attempt, id: Date.now().toString(), date: new Date().toISOString() }; setQuizAttempts(prev => [newAttempt, ...prev]); }, []);
+    if (firebaseUser) firestoreService.updateUserData(firebaseUser.uid, { 'settings.theme': newTheme });
+  }, [theme, firebaseUser]);
+
+  const setLanguage = useCallback((lang: Language) => {
+    setLanguageState(lang);
+    if (firebaseUser) firestoreService.updateUserData(firebaseUser.uid, { 'settings.language': lang });
+  }, [firebaseUser]);
+
+  const addLessonList = useCallback(async (name: string) => {
+    if (!firebaseUser) return null;
+    const newList = await firestoreService.addLessonList(firebaseUser.uid, name);
+    setLessonLists(prev => [...prev, newList]);
+    return newList;
+  }, [firebaseUser]);
+
+  const addTopicToLessonList = useCallback((listId: string, topic: SavedTopic) => {
+    if (!firebaseUser) return;
+    firestoreService.addTopicToLessonList(firebaseUser.uid, listId, topic);
+    setLessonLists(prev => prev.map(list => list.id === listId ? { ...list, topics: [...list.topics, topic] } : list));
+  }, [firebaseUser]);
+
+  const addQuizAttempt = useCallback(async (attempt: Omit<QuizAttempt, 'id' | 'date'>) => {
+    if (!firebaseUser) return;
+    const newAttempt = await firestoreService.addQuizAttempt(firebaseUser.uid, attempt);
+    setQuizAttempts(prev => [newAttempt, ...prev]);
+  }, [firebaseUser]);
   
   const upgradeSubscription = useCallback((tier: 'silver' | 'gold') => {
+      if (!firebaseUser) return;
       setSubscriptionTier(tier);
-      localStorage.setItem('lastCreditReset', new Date(0).toISOString());
+      firestoreService.updateUserData(firebaseUser.uid, { 'subscription.tier': tier });
       setIsSubscriptionModalOpen(false);
-  }, []);
+  }, [firebaseUser]);
 
   const canUseFeature = useCallback((feature: keyof Omit<Usage, 'date'> | 'visualAssistant', amount = 1): boolean => {
     if (subscriptionTier === 'silver' || subscriptionTier === 'gold') {
@@ -208,12 +207,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [subscriptionTier, credits, usage]);
 
   const useFeature = useCallback((feature: keyof Omit<Usage, 'date'> | 'visualAssistant', amount = 1) => {
+    if (!firebaseUser) return;
     if (feature === 'visualAssistant') {
-        setCredits(c => Math.max(0, c - VISUAL_ASSISTANT_COST));
+        const newCredits = Math.max(0, credits - VISUAL_ASSISTANT_COST);
+        setCredits(newCredits);
+        firestoreService.updateUserData(firebaseUser.uid, { 'subscription.credits': newCredits });
     } else if (feature in usage) {
-        setUsage(u => ({...u, [feature]: u[feature as keyof typeof DAILY_LIMITS] + amount }));
+        const newUsage = {...usage, [feature]: usage[feature as keyof typeof DAILY_LIMITS] + amount };
+        setUsage(newUsage);
+        firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
     }
-  }, [usage]);
+  }, [firebaseUser, credits, usage]);
   
   const value = useMemo(() => ({
     user, signOut, userRole, setUserRole, theme, toggleTheme, language, setLanguage,
@@ -228,7 +232,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveTool, upgradeSubscription, canUseFeature, useFeature
   ]);
 
-  if (authLoading) {
+  if (authLoading || dataLoading) {
     return (
         <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-slate-900">
             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>

@@ -3,6 +3,7 @@ import { AppContext } from '../contexts/AppContext';
 import { useTranslations } from '../hooks/useTranslations';
 import { TOOLS, ToolKey } from '../constants';
 import { ChevronDoubleLeftIcon, SparklesIcon } from './icons';
+import Logo from './common/Logo';
 
 interface SidebarProps {
   activeTool: ToolKey;
@@ -51,9 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, setActiveTool, isSidebarC
     <aside className={`fixed top-0 left-0 h-full glass-card hidden lg:flex flex-col m-4 rounded-3xl transition-all duration-300 ease-in-out z-20 ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
       <div className={`flex items-center p-4 ${isSidebarCollapsed ? 'justify-center' : 'pl-4'} space-x-2 mb-6 h-16`}>
         <div className="bg-indigo-100 dark:bg-white/20 p-2 rounded-lg">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-600 dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m12.728 0l-.707.707M12 21a9 9 0 110-18 9 9 0 010 18z" />
-          </svg>
+          <Logo className="h-8 w-8 text-indigo-600 dark:text-white" />
         </div>
         {!isSidebarCollapsed && <h1 className="text-2xl font-bold whitespace-nowrap text-gray-900 dark:text-white">EduSpark AI</h1>}
       </div>

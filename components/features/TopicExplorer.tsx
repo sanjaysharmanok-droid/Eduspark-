@@ -66,13 +66,19 @@ const TopicExplorer: React.FC = () => {
     }
   }, [topic, outputLanguage, responseStyle, canUseFeature, useFeature]);
 
-  const handleSaveTopic = () => {
+  // FIX: handleSaveTopic needs to be async to handle the promise from addLessonList
+  const handleSaveTopic = async () => {
     if (!explanation) return;
     let listId = selectedListId;
 
     if (selectedListId === 'new' && newListName.trim()) {
-        const newList = addLessonList(newListName.trim());
-        listId = newList.id;
+        const newList = await addLessonList(newListName.trim());
+        if (newList) {
+            listId = newList.id;
+        } else {
+            alert("Failed to create a new list.");
+            return;
+        }
     }
 
     if (!listId || listId === 'new') {
