@@ -8,7 +8,7 @@ import Button from './common/Button';
 import Logo from './common/Logo';
 
 const HomeScreen: React.FC = () => {
-  const { user, setUserRole } = useContext(AppContext);
+  const { user, setUserRole, startGuestSession } = useContext(AppContext);
   const { t } = useTranslations();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
@@ -46,11 +46,17 @@ const HomeScreen: React.FC = () => {
           Your AI-powered educational assistant. Please sign in to begin.
         </p>
       </div>
-      <div className="relative z-10 w-full max-w-xs animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
+      <div className="relative z-10 w-full max-w-xs text-center animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
         <Button onClick={handleSignIn} isLoading={isSigningIn} className="w-full">
             <GoogleIcon className="w-6 h-6 mr-3" />
             Continue with Google
         </Button>
+        <button
+          onClick={startGuestSession}
+          className="mt-6 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+        >
+            Skip & Start as Guest
+        </button>
       </div>
     </>
   );

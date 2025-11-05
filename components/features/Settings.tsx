@@ -23,19 +23,27 @@ const Settings: React.FC = () => {
     setUserRole(null);
   };
 
+  const isGuest = user?.email === 'guest@eduspark.ai';
+
   return (
     <div className="space-y-6">
        <Card title="Profile & Account">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center space-x-4 mb-4 sm:mb-0">
-            <img src={user?.picture} alt={user?.name} className="h-16 w-16 rounded-full border-2 border-indigo-400" />
+            {user?.picture ? (
+                 <img src={user.picture} alt={user.name} className="h-16 w-16 rounded-full border-2 border-indigo-400" />
+            ) : (
+                <div className="h-16 w-16 rounded-full border-2 border-indigo-400 bg-gray-200 dark:bg-slate-700 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-gray-500 dark:text-gray-400">{user?.name.charAt(0)}</span>
+                </div>
+            )}
             <div className="text-gray-900 dark:text-white">
                 <p className="font-semibold text-xl">{user?.name}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{user?.email}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{isGuest ? 'Guest Account' : user?.email}</p>
             </div>
           </div>
           <Button onClick={signOut} className="w-full sm:w-auto focus:ring-red-500 from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 hover:shadow-rose-500/50">
-              Sign Out
+              {isGuest ? 'Login / Sign Up' : 'Sign Out'}
           </Button>
         </div>
       </Card>

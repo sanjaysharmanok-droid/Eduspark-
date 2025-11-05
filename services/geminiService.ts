@@ -7,6 +7,9 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+// In-memory cache for the user's session
+const cache = new Map<string, any>();
+
 const languageMap: Record<Language, string> = {
     en: 'English',
     hi: 'Hindi',
@@ -19,6 +22,13 @@ const markdownFixPrompt = (language: Language) => {
 }
 
 export const getTopicExplanationWithImage = async (topic: string, language: Language, style: ResponseStyle): Promise<{ explanation: string; imageUrl: string | null }> => {
+    const cacheKey = `topicExplanation-${topic}-${language}-${style}`;
+    if (cache.has(cacheKey)) {
+        console.log(`[Cache Hit] Returning cached data for: ${cacheKey}`);
+        return cache.get(cacheKey);
+    }
+    console.log(`[Cache Miss] Fetching data for: ${cacheKey}`);
+
     const prompt = `You are an expert educator. Explain the topic of "${topic}" in a ${style.toLowerCase()} style. The response should be in ${languageMap[language]}.
     ${markdownFixPrompt(language)}
     Format the output as a single JSON object with two keys:
@@ -60,10 +70,20 @@ export const getTopicExplanationWithImage = async (topic: string, language: Lang
             console.error("Image generation failed, returning text only.", e);
         }
     }
-    return { explanation, imageUrl };
+    
+    const result = { explanation, imageUrl };
+    cache.set(cacheKey, result);
+    return result;
 };
 
 export const generateLessonPlan = async (topic: string, grade: string, duration: string, language: Language): Promise<LessonPlan> => {
+  const cacheKey = `lessonPlan-${topic}-${grade}-${duration}-${language}`;
+  if (cache.has(cacheKey)) {
+      console.log(`[Cache Hit] Returning cached data for: ${cacheKey}`);
+      return cache.get(cacheKey);
+  }
+  console.log(`[Cache Miss] Fetching data for: ${cacheKey}`);
+
   const prompt = `Generate a detailed lesson plan for a '${grade}' class on the topic of '${topic}'. The lesson should be designed for a duration of '${duration}'. The output should be a JSON object, with all text content in ${languageMap[language]}.`;
   
   const response = await ai.models.generateContent({
@@ -99,16 +119,28 @@ export const generateLessonPlan = async (topic: string, grade: string, duration:
     }
   });
 
-  return JSON.parse(response.text.trim()) as LessonPlan;
+  const result = JSON.parse(response.text.trim()) as LessonPlan;
+  cache.set(cacheKey, result);
+  return result;
 };
 
 export const getSimpleResponse = async (prompt: string, language: Language): Promise<string> => {
+    const cacheKey = `simpleResponse-${prompt}-${language}`;
+    if (cache.has(cacheKey)) {
+        console.log(`[Cache Hit] Returning cached data for: ${cacheKey}`);
+        return cache.get(cacheKey);
+    }
+    console.log(`[Cache Miss] Fetching data for: ${cacheKey}`);
+
     const fullPrompt = `${prompt} \n\nRespond in ${languageMap[language]}. ${markdownFixPrompt(language)}`;
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-lite',
         contents: fullPrompt,
     });
-    return response.text;
+
+    const result = response.text;
+    cache.set(cacheKey, result);
+    return result;
 };
 
 export const getSmartResponse = async (prompt: string, imageBase64: string | null, useThinkingMode: boolean, language: Language): Promise<string> => {
@@ -145,6 +177,13 @@ export const generateSpeech = async (text: string): Promise<string> => {
 };
 
 export const generateVisualPresentation = async (topic: string, numSlides: number, theme: PresentationTheme, language: Language): Promise<Presentation> => {
+    const cacheKey = `visualPresentation-${topic}-${numSlides}-${theme}-${language}`;
+    if (cache.has(cacheKey)) {
+        console.log(`[Cache Hit] Returning cached data for: ${cacheKey}`);
+        return cache.get(cacheKey);
+    }
+    console.log(`[Cache Miss] Fetching data for: ${cacheKey}`);
+    
     const textGenPrompt = `Generate a presentation on "${topic}" for ~${numSlides} slides, in a ${theme.toLowerCase()} style. The entire text output must be in ${languageMap[language]}.
     For each slide, provide:
     1. A short "title".
@@ -198,11 +237,19 @@ export const generateVisualPresentation = async (topic: string, numSlides: numbe
         } catch (e) { console.error(`Image generation failed for prompt: "${slide.imagePrompt}"`, e); }
     }
 
+    cache.set(cacheKey, presentationOutline);
     return presentationOutline;
 };
 
 
 export const generateQuiz = async (topic: string, numQuestions: number, difficulty: string, language: Language): Promise<Quiz> => {
+    const cacheKey = `quiz-${topic}-${numQuestions}-${difficulty}-${language}`;
+    if (cache.has(cacheKey)) {
+        console.log(`[Cache Hit] Returning cached data for: ${cacheKey}`);
+        return cache.get(cacheKey);
+    }
+    console.log(`[Cache Miss] Fetching data for: ${cacheKey}`);
+
     const prompt = `Generate a quiz with ${numQuestions} questions on the topic of '${topic}' for a ${difficulty} level. The output must be a JSON object, with all text content in ${languageMap[language]}. Each question must have exactly 4 options and one correct answer.`;
     
     const response = await ai.models.generateContent({
@@ -232,7 +279,9 @@ export const generateQuiz = async (topic: string, numQuestions: number, difficul
         }
     });
 
-    return JSON.parse(response.text.trim()) as Quiz;
+    const result = JSON.parse(response.text.trim()) as Quiz;
+    cache.set(cacheKey, result);
+    return result;
 }
 
 export const getLiveResponse = async (prompt: string, imageBase64: string, language: Language): Promise<string> => {

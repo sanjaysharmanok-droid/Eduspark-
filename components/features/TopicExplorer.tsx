@@ -133,7 +133,7 @@ const TopicExplorer: React.FC = () => {
       {error && <Card className="bg-red-100 dark:bg-red-900/50 border-red-300 dark:border-red-500/50 text-red-700 dark:text-red-200"><p>{error}</p></Card>}
       {loading && <Spinner />}
 
-      {(subscriptionTier === 'free' || subscriptionTier === 'silver') && <AdBanner />}
+      {(subscriptionTier === 'free' || subscriptionTier === 'silver') && explanation && <AdBanner />}
 
       {explanation && (
         <>

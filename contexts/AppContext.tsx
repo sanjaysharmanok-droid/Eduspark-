@@ -44,6 +44,7 @@ interface AppContextType {
   upgradeSubscription: (tier: 'silver' | 'gold') => void;
   canUseFeature: (feature: keyof Omit<Usage, 'date'> | 'visualAssistant', amount?: number) => boolean;
   useFeature: (feature: keyof Omit<Usage, 'date'> | 'visualAssistant', amount?: number) => void;
+  startGuestSession: () => void;
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -146,8 +147,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => { if (userRole) setActiveTool(defaultTool); }, [userRole, defaultTool]);
 
   const signOut = useCallback(async () => {
-    await firebaseSignOut();
-    // onAuthStateChanged listener will handle clearing user state.
+    if (firebaseUser) {
+      await firebaseSignOut();
+      // onAuthStateChanged listener will handle clearing user state.
+    } else {
+      // It's a guest user, just clear the state manually
+      setUser(null);
+      setUserRoleState(null);
+    }
+  }, [firebaseUser]);
+  
+  const startGuestSession = useCallback(() => {
+    setUser({ name: 'Guest Student', email: 'guest@eduspark.ai', picture: '' });
+    setUserRoleState('student');
+    // Set default free tier values for guest
+    setSubscriptionTier('free');
+    setCredits(0);
+    setUsage({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0 });
+    setLessonLists([]);
+    setQuizAttempts([]);
+    setAuthLoading(false);
+    setDataLoading(false);
   }, []);
 
   // --- State Modification Callbacks ---
@@ -207,15 +227,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [subscriptionTier, credits, usage]);
 
   const useFeature = useCallback((feature: keyof Omit<Usage, 'date'> | 'visualAssistant', amount = 1) => {
-    if (!firebaseUser) return;
     if (feature === 'visualAssistant') {
         const newCredits = Math.max(0, credits - VISUAL_ASSISTANT_COST);
         setCredits(newCredits);
-        firestoreService.updateUserData(firebaseUser.uid, { 'subscription.credits': newCredits });
+        if (firebaseUser) firestoreService.updateUserData(firebaseUser.uid, { 'subscription.credits': newCredits });
     } else if (feature in usage) {
         const newUsage = {...usage, [feature]: usage[feature as keyof typeof DAILY_LIMITS] + amount };
         setUsage(newUsage);
-        firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
+        if (firebaseUser) firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
     }
   }, [firebaseUser, credits, usage]);
   
@@ -224,10 +243,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     lessonLists, addLessonList, addTopicToLessonList, quizAttempts, addQuizAttempt,
     activeQuizTopic, setActiveQuizTopic, activeTool, setActiveTool,
     subscriptionTier, credits, usage, isSubscriptionModalOpen, setIsSubscriptionModalOpen,
-    upgradeSubscription, canUseFeature, useFeature
+    upgradeSubscription, canUseFeature, useFeature, startGuestSession
   }), [
     user, signOut, userRole, theme, language, lessonLists, quizAttempts, activeQuizTopic, activeTool,
-    subscriptionTier, credits, usage, isSubscriptionModalOpen,
+    subscriptionTier, credits, usage, isSubscriptionModalOpen, startGuestSession,
     setUserRole, toggleTheme, setLanguage, addLessonList, addTopicToLessonList, addQuizAttempt,
     setActiveTool, upgradeSubscription, canUseFeature, useFeature
   ]);
