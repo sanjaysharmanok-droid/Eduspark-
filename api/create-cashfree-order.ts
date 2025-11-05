@@ -13,10 +13,13 @@ import { Cashfree } from 'cashfree-pg';
  * =================================================================================================
  */
 
-// Initialize Cashfree with credentials from environment variables.
-Cashfree.XClientId = process.env.CASHFREE_APP_ID!;
-Cashfree.XClientSecret = process.env.CASHFREE_SECRET_KEY!;
-Cashfree.XEnvironment = Cashfree.Environment.SANDBOX; // Use SANDBOX for testing, PRODUCTION for live payments.
+// Initialize Cashfree with the correct instance-based approach for the v4 SDK.
+const cashfree = new Cashfree({
+    x_client_id: process.env.CASHFREE_APP_ID!,
+    x_client_secret: process.env.CASHFREE_SECRET_KEY!,
+    x_environment: Cashfree.Environment.SANDBOX, // Use SANDBOX for testing, PRODUCTION for live payments.
+});
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -24,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { tier, userId, userEmail, userName, returnUrl } = req.body;
+    const { tier, userId, userEmail, userName } = req.body;
 
     if (!tier || !userId || !userEmail || !userName) {
       return res.status(400).json({ message: 'Missing required parameters.' });
@@ -54,12 +57,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         customer_email: userEmail,
         customer_name: userName,
       },
-      // You can also add subscription details here if setting up recurring payments
-      // For a one-time charge (which is simpler to start with), this is sufficient.
     };
 
-    // Call the Cashfree API to create the order.
-    const response = await Cashfree.PG.Orders.CreateOrder(orderRequest);
+    // Use the instance method to create the order, which is correct for v4 of the SDK.
+    const response = await cashfree.PG.orders.createOrder(orderRequest);
     
     const paymentSessionId = response.data.payment_session_id;
 
