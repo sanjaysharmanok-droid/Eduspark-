@@ -2,6 +2,10 @@ const CACHE_NAME = 'eduspark-ai-cache-v1';
 const urlsToCache = [
   '/',
   '/index.html',
+  '/screenshots/desktop-1.svg',
+  '/screenshots/desktop-2.svg',
+  '/screenshots/mobile-1.svg',
+  '/screenshots/mobile-2.svg',
 ];
 
 self.addEventListener('install', event => {

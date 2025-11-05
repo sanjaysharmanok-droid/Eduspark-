@@ -1,0 +1,40 @@
+<svg width="414" height="896" viewBox="0 0 414 896" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="414" height="896" fill="#F9FAFB"/>
+<rect x="24" y="60" width="366" height="72" rx="24" fill="white" fill-opacity="0.5"/>
+<rect x="40" y="76" width="40" height="40" rx="12" fill="#E0E7FF"/>
+<text x="96" y="94" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#111827">Quiz Generator</text>
+<text x="96" y="116" font-family="Arial, sans-serif" font-size="14" fill="#6B7280">Test your understanding</text>
+
+<rect x="24" y="156" width="366" height="700" rx="24" fill="white" fill-opacity="0.5"/>
+
+<text x="48" y="200" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#111827">Quiz: The Solar System</text>
+
+<rect x="48" y="248" width="318" height="200" rx="16" fill="#F3F4F6"/>
+<text x="64" y="280" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#1F2937">1. Which planet is known as the Red Planet?</text>
+<rect x="64" y="312" width="286" height="32" rx="8" fill="white"/>
+<circle cx="82" cy="328" r="6" stroke="#9CA3AF" stroke-width="2"/>
+<text x="100" y="332" font-family="Arial, sans-serif" font-size="14" fill="#4B5563">Earth</text>
+<rect x="64" y="352" width="286" height="32" rx="8" fill="white"/>
+<circle cx="82" cy="368" r="6" stroke="#9CA3AF" stroke-width="2"/>
+<text x="100" y="372" font-family="Arial, sans-serif" font-size="14" fill="#4B5563">Mars</text>
+<rect x="64" y="392" width="286" height="32" rx="8" fill="white"/>
+<circle cx="82" cy="408" r="6" stroke="#4F46E5" stroke-width="2"/>
+<circle cx="82" cy="408" r="3" fill="#4F46E5"/>
+<text x="100" y="412" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#4F46E5">Jupiter</text>
+
+<rect x="48" y="472" width="318" height="200" rx="16" fill="#F3F4F6"/>
+<text x="64" y="504" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#1F2937">2. What is the largest planet in our solar system?</text>
+<rect x="64" y="536" width="286" height="32" rx="8" fill="white"/>
+<circle cx="82" cy="552" r="6" stroke="#9CA3AF" stroke-width="2"/>
+<text x="100" y="556" font-family="Arial, sans-serif" font-size="14" fill="#4B5563">Saturn</text>
+<rect x="64" y="576" width="286" height="32" rx="8" fill="white"/>
+<circle cx="82" cy="592" r="6" stroke="#9CA3AF" stroke-width="2"/>
+<text x="100" y="596" font-family="Arial, sans-serif" font-size="14" fill="#4B5563">Neptune</text>
+<rect x="64" y="616" width="286" height="32" rx="8" fill="white"/>
+<circle cx="82" cy="632" r="6" stroke="#9CA3AF" stroke-width="2"/>
+<text x="100" y="636" font-family="Arial, sans-serif" font-size="14" fill="#4B5563">Jupiter</text>
+
+<rect x="48" y="700" width="318" height="48" rx="24" fill="#4F46E5"/>
+<text x="160" y="730" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">Submit Quiz</text>
+
+</svg>

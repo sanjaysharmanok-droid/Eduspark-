@@ -1,0 +1,32 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="1280" height="720" fill="#F3F4F6"/>
+<rect x="24" y="24" width="256" height="672" rx="24" fill="white" fill-opacity="0.5"/>
+<rect x="40" y="40" width="48" height="48" rx="12" fill="#E0E7FF"/>
+<rect x="104" y="52" width="144" height="24" rx="4" fill="#D1D5DB"/>
+<rect x="40" y="120" width="224" height="40" rx="8" fill="#E0E7FF"/>
+<rect x="56" y="132" width="16" height="16" rx="4" fill="#6366F1"/>
+<rect x="88" y="130" width="120" height="20" rx="4" fill="#6366F1"/>
+<rect x="40" y="176" width="224" height="40" rx="8" fill="#F3F4F6"/>
+<rect x="56" y="188" width="16" height="16" rx="4" fill="#9CA3AF"/>
+<rect x="88" y="186" width="120" height="20" rx="4" fill="#E5E7EB"/>
+<rect x="40" y="232" width="224" height="40" rx="8" fill="#F3F4F6"/>
+<rect x="56" y="244" width="16" height="16" rx="4" fill="#9CA3AF"/>
+<rect x="88" y="242" width="120" height="20" rx="4" fill="#E5E7EB"/>
+<rect x="304" y="24" width="952" height="120" rx="24" fill="white" fill-opacity="0.5"/>
+<rect x="328" y="48" width="72" height="72" rx="16" fill="#E0E7FF"/>
+<rect x="424" y="56" width="240" height="28" rx="4" fill="#374151"/>
+<rect x="424" y="96" width="400" height="20" rx="4" fill="#9CA3AF"/>
+<rect x="304" y="168" width="952" height="528" rx="24" fill="white" fill-opacity="0.5"/>
+<text x="344" y="224" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#111827">Lesson Plan: The Water Cycle</text>
+<rect x="344" y="256" width="120" height="24" rx="12" fill="#E0E7FF"/>
+<text x="356" y="274" font-family="Arial, sans-serif" font-size="14" fill="#4338CA">5th Grade</text>
+<rect x="480" y="256" width="120" height="24" rx="12" fill="#D1FAE5"/>
+<text x="492" y="274" font-family="Arial, sans-serif" font-size="14" fill="#065F46">45 minutes</text>
+<text x="344" y="320" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#374151">Learning Objectives</text>
+<rect x="344" y="344" width="400" height="12" rx="4" fill="#E5E7EB"/>
+<rect x="344" y="368" width="500" height="12" rx="4" fill="#E5E7EB"/>
+<text x="344" y="420" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#374151">Activities</text>
+<rect x="344" y="444" width="872" height="80" rx="8" fill="#F9FAFB"/>
+<rect x="356" y="456" width="848" height="16" rx="4" fill="#D1D5DB"/>
+<rect x="356" y="484" width="600" height="12" rx="4" fill="#E5E7EB"/>
+</svg>
