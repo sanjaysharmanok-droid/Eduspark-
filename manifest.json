@@ -1,0 +1,21 @@
+{
+  "short_name": "EduSpark",
+  "name": "EduSpark AI",
+  "description": "An AI-powered educational assistant for teachers and students. Create lesson plans, get homework help, explore new topics, and manage daily school activities with ease.",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#4f46e5",
+  "background_color": "#f3f4f6"
+}

@@ -19,6 +19,7 @@ const VisualAssistant = React.lazy(() => import('./components/features/VisualAss
 const Settings = React.lazy(() => import('./components/features/Settings'));
 const MyLibrary = React.lazy(() => import('./components/features/MyLibrary'));
 const MyReports = React.lazy(() => import('./components/features/MyReports'));
+const FactFinder = React.lazy(() => import('./components/features/FactFinder'));
 
 const useMediaQuery = (query: string) => {
     const [matches, setMatches] = useState(false);
@@ -60,6 +61,7 @@ const App: React.FC = () => {
       case 'settings': return <Settings />;
       case 'myLibrary': return <MyLibrary />;
       case 'myReports': return <MyReports />;
+      case 'factFinder': return <FactFinder />;
       default: return <LessonPlanner />;
     }
   }, [activeTool]);
@@ -70,23 +72,23 @@ const App: React.FC = () => {
     return <HomeScreen />;
   }
   
-  const mainContentContainerClasses = isVisualAssistantActive && isMobile 
-    ? "h-full" 
+  const mainContentContainerClasses = isVisualAssistantActive
+    ? "h-full w-full" 
     : "max-w-5xl mx-auto p-4 sm:p-6 lg:p-8";
 
   return (
     <>
     <SubscriptionModal />
-    <div className={`h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200 ${!(isVisualAssistantActive && isMobile) && 'flex'}`}>
+    <div className={`h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200 ${!isVisualAssistantActive && 'flex'}`}>
       <Sidebar 
         activeTool={activeTool} 
         setActiveTool={setActiveTool} 
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
       />
-      <main className={`flex-1 overflow-y-auto scrollbar-thin transition-all duration-300 ${isSidebarCollapsed ? 'lg:pl-24' : 'lg:pl-72'} ${!(isVisualAssistantActive && isMobile) && 'pb-24 lg:pb-0'}`}>
+      <main className={`flex-1 overflow-y-auto scrollbar-thin transition-all duration-300 ${isSidebarCollapsed ? 'lg:pl-24' : 'lg:pl-72'} ${!isVisualAssistantActive && 'pb-24 lg:pb-0'}`}>
         <div className={mainContentContainerClasses}>
-           {!(isVisualAssistantActive && isMobile) && (
+           {!(isVisualAssistantActive) && activeToolDetails && (
               <div className="glass-card p-6 rounded-2xl shadow-lg mb-6">
                   <div className="flex items-center space-x-4">
                       <div className="bg-indigo-100 dark:bg-white/20 p-3 rounded-xl">
@@ -104,7 +106,7 @@ const App: React.FC = () => {
           </React.Suspense>
         </div>
       </main>
-      {!(isVisualAssistantActive && isMobile) && <BottomNavBar />}
+      {!isVisualAssistantActive && <BottomNavBar />}
     </div>
     </>
   );

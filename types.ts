@@ -74,9 +74,14 @@ export interface LessonList {
 }
 
 export interface QuizAttempt {
-    id: string;
+    id:string;
     quiz: Quiz;
     userAnswers: (string | null)[];
     score: number;
     date: string;
+}
+
+export interface Fact {
+  fact: string;
+  detail: string;
 }

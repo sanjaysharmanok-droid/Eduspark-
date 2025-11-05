@@ -11,7 +11,8 @@ export const translations = {
   settings_name: { en: 'Settings', hi: 'सेटिंग्स', es: 'Ajustes', fr: 'Paramètres' },
   myLibrary_name: { en: 'My Library', hi: 'मेरी लाइब्रेरी', es: 'Mi Biblioteca', fr: 'Ma Bibliothèque' },
   myReports_name: { en: 'My Reports', hi: 'मेरी रिपोर्ट', es: 'Mis Informes', fr: 'Mes Rapports' },
-  
+  factFinder_name: { en: 'Fact Finder', hi: 'तथ्य खोजक', es: 'Buscador de Hechos', fr: 'Chercheur de Faits' },
+
   // Tool Descriptions
   homeworkHelper_desc: { en: 'Get help with tough questions and understand complex subjects.', hi: 'कठिन प्रश्नों में सहायता प्राप्त करें और जटिल विषयों को समझें।', es: 'Obtén ayuda con preguntas difíciles y comprende temas complejos.', fr: 'Obtenez de l\'aide pour les questions difficiles et comprenez des sujets complexes.' },
   topicExplorer_desc: { en: 'Dive deep into any topic and expand your knowledge.', hi: 'किसी भी विषय में गहराई से उतरें और अपना ज्ञान बढ़ाएँ।', es: 'Profundiza en cualquier tema y amplía tus conocimientos.', fr: 'Plongez au cœur de n\'importe quel sujet et développez vos connaissances.' },
@@ -25,7 +26,8 @@ export const translations = {
   settings_desc: { en: 'Manage your application settings.', hi: 'अपनी एप्लिकेशन सेटिंग्स प्रबंधित करें।', es: 'Gestiona la configuración de tu aplicación.', fr: 'Gérez les paramètres de votre application.' },
   myLibrary_desc: { en: 'Save and organize topics into custom lesson lists.', hi: 'विषयों को सहेजें और कस्टम पाठ सूचियों में व्यवस्थित करें।', es: 'Guarda y organiza temas en listas de lecciones personalizadas.', fr: 'Enregistrez et organisez des sujets dans des listes de leçons personnalisées.' },
   myReports_desc: { en: 'View your quiz history and track your progress.', hi: 'अपने प्रश्नोत्तरी इतिहास देखें और अपनी प्रगति को ट्रैक करें।', es: 'Consulta tu historial de cuestionarios y sigue tu progreso.', fr: 'Consultez l\'historique de vos quiz et suivez vos progrès.' },
-  
+  factFinder_desc: { en: 'Get a list of interesting facts about any topic.', hi: 'किसी भी विषय के बारे में रोचक तथ्यों की सूची प्राप्त करें।', es: 'Obtén una lista de datos interesantes sobre cualquier tema.', fr: 'Obtenez une liste de faits intéressants sur n\'importe quel sujet.' },
+
   // Categories
   forStudents: { en: 'For Students', hi: 'छात्रों के लिए', es: 'Para Estudiantes', fr: 'Pour les Étudiants' },
   forTeachers: { en: 'For Teachers', hi: 'शिक्षकों के लिए', es: 'Para Profesores', fr: 'Pour les Enseignants' },

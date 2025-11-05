@@ -16,7 +16,7 @@ const QuizGenerator: React.FC = () => {
   const { addQuizAttempt, userRole, activeQuizTopic, setActiveQuizTopic, subscriptionTier, canUseFeature, useFeature, usage } = useContext(AppContext);
 
   const [topic, setTopic] = useState(activeQuizTopic || '');
-  const [numQuestions, setNumQuestions] = useState(5);
+  const [numQuestions, setNumQuestions] = useState('5');
   const [difficulty, setDifficulty] = useState('Medium');
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(false);
@@ -64,14 +64,18 @@ const QuizGenerator: React.FC = () => {
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!topic) return;
+    const questionsCount = parseInt(numQuestions, 10);
+    if (!topic || isNaN(questionsCount) || questionsCount < 1) {
+        setError("Please enter a valid topic and number of questions.");
+        return;
+    }
 
     if (isTeacher && !isPaidUser && (difficulty === 'Mix' || topic.includes(','))) {
         setLimitError("Using multiple topics and 'Mix' difficulty is a premium feature.");
         return;
     }
 
-    if (!canUseFeature('quizQuestions', numQuestions)) {
+    if (!canUseFeature('quizQuestions', questionsCount)) {
         setLimitError(`You can generate ${100 - (usage.quizQuestions)} more questions today.`);
         return;
     }
@@ -80,13 +84,13 @@ const QuizGenerator: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const generatedQuiz = await generateQuiz(topic, numQuestions, difficulty, outputLanguage);
+      const generatedQuiz = await generateQuiz(topic, questionsCount, difficulty, outputLanguage);
       setQuiz(generatedQuiz);
       if (userRole === 'student') {
         setUserAnswers(new Array(generatedQuiz.questions.length).fill(null));
         setIsSolving(true);
       }
-      useFeature('quizQuestions', numQuestions);
+      useFeature('quizQuestions', questionsCount);
     } catch (err) {
       setError('Failed to generate quiz. The model may have returned an unexpected format. Please try again.');
       console.error(err);
@@ -289,7 +293,15 @@ const QuizGenerator: React.FC = () => {
                     id="num-questions"
                     type="number"
                     value={numQuestions}
-                    onChange={(e) => setNumQuestions(Math.max(1, Math.min(maxQuestions, parseInt(e.target.value, 10))))}
+                    onChange={(e) => setNumQuestions(e.target.value)}
+                    onBlur={() => {
+                        const num = parseInt(numQuestions, 10);
+                        if (isNaN(num) || num < 1) {
+                            setNumQuestions('1');
+                        } else if (num > maxQuestions) {
+                            setNumQuestions(String(maxQuestions));
+                        }
+                    }}
                     min="1"
                     max={maxQuestions}
                     required

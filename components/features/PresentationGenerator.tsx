@@ -13,7 +13,7 @@ import AdBanner from '../common/AdBanner';
 
 const PresentationGenerator: React.FC = () => {
   const [topic, setTopic] = useState('');
-  const [numSlides, setNumSlides] = useState(8);
+  const [numSlides, setNumSlides] = useState('8');
   const [presentation, setPresentation] = useState<Presentation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +90,11 @@ const PresentationGenerator: React.FC = () => {
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!topic) return;
+    const slidesCount = parseInt(numSlides, 10);
+    if (!topic || isNaN(slidesCount) || slidesCount < 3) {
+        setError("Please enter a valid topic and number of slides (min 3).");
+        return;
+    }
     
     if (!canUseFeature('presentations')) {
         setLimitError("You've reached your daily limit for presentations.");
@@ -102,7 +106,7 @@ const PresentationGenerator: React.FC = () => {
     setLimitError(null);
     setPresentation(null);
     try {
-      const result = await generateVisualPresentation(topic, numSlides, theme, outputLanguage);
+      const result = await generateVisualPresentation(topic, slidesCount, theme, outputLanguage);
       setPresentation(result);
       useFeature('presentations');
     } catch (err) {
@@ -131,7 +135,15 @@ const PresentationGenerator: React.FC = () => {
               id="num-slides"
               type="number"
               value={numSlides}
-              onChange={(e) => setNumSlides(Math.max(3, parseInt(e.target.value, 10)))}
+              onChange={(e) => setNumSlides(e.target.value)}
+              onBlur={() => {
+                  const num = parseInt(numSlides, 10);
+                  if (isNaN(num) || num < 3) {
+                      setNumSlides('3');
+                  } else if (num > 15) {
+                      setNumSlides('15');
+                  }
+              }}
               min="3"
               max="15"
               required

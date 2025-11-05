@@ -66,7 +66,6 @@ const TopicExplorer: React.FC = () => {
     }
   }, [topic, outputLanguage, responseStyle, canUseFeature, useFeature]);
 
-  // FIX: handleSaveTopic needs to be async to handle the promise from addLessonList
   const handleSaveTopic = async () => {
     if (!explanation) return;
     let listId = selectedListId;

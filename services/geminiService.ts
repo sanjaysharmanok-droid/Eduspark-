@@ -1,5 +1,5 @@
-import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { LessonPlan, Quiz, Presentation, Language, ResponseStyle, PresentationTheme } from '../types';
+import { GoogleGenAI, Type, Modality, GenerateContentResponse } from "@google/genai";
+import { LessonPlan, Quiz, Presentation, Language, ResponseStyle, PresentationTheme, Fact } from '../types';
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable is not set");
@@ -12,7 +12,7 @@ const cache = new Map<string, any>();
 
 const languageMap: Record<Language, string> = {
     en: 'English',
-    hi: 'Hindi',
+    hi: 'Hindi, using the Devanagari script (for example: "नमस्ते")',
     es: 'Spanish',
     fr: 'French',
 };
@@ -20,6 +20,90 @@ const languageMap: Record<Language, string> = {
 const markdownFixPrompt = (language: Language) => {
     return language !== 'en' ? 'When responding, do not use markdown formatting like asterisks or hashtags. Use plain text with standard punctuation and line breaks.' : '';
 }
+
+/**
+ * A wrapper function to add retry logic with exponential backoff for API calls.
+ * This helps handle transient errors like model overload (503).
+ */
+const withRetry = async <T>(apiCall: () => Promise<T>, maxRetries = 3, initialDelay = 1000): Promise<T> => {
+    let attempt = 0;
+    let delay = initialDelay;
+    while (attempt < maxRetries) {
+        try {
+            return await apiCall();
+        } catch (error: any) {
+            attempt++;
+            const errorMessage = error.toString();
+            // Check for common transient error messages
+            const isRetryable = errorMessage.includes('overloaded') || 
+                                errorMessage.includes('503') || 
+                                errorMessage.includes('UNAVAILABLE');
+
+            if (isRetryable && attempt < maxRetries) {
+                console.warn(`API call failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`, errorMessage);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; // Exponential backoff
+            } else {
+                // Not a retryable error or max retries reached, re-throw
+                console.error(`API call failed after ${attempt} attempts.`);
+                throw error;
+            }
+        }
+    }
+    // This part should not be reached if maxRetries > 0, but as a fallback:
+    throw new Error('API call failed after multiple retries.');
+};
+
+export const getDetailedFactsResponse = async (topic: string, count: number, language: Language): Promise<{ topic: string, facts: Fact[] }> => {
+    const prompt = `Generate ${count} interesting and detailed facts about "${topic}". 
+    Use a casual, friendly, and conversational tone, like a knowledgeable friend explaining things. 
+    Incorporate an Indian context or relatable examples where possible. Make it easy for a student in India to understand.
+    For each fact, provide a short "fact" title and a more detailed "detail" paragraph.
+    All text content in the JSON response must be in ${languageMap[language]}.`;
+
+    const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    topic: { type: Type.STRING },
+                    facts: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                fact: { type: Type.STRING },
+                                detail: { type: Type.STRING }
+                            },
+                            required: ['fact', 'detail']
+                        }
+                    }
+                },
+                required: ['topic', 'facts']
+            }
+        }
+    }));
+    
+    try {
+        const result = JSON.parse(response.text.trim()) as { topic: string, facts: Fact[] };
+        
+        if (!result.topic || !Array.isArray(result.facts)) {
+            throw new Error("Invalid JSON structure received from AI.");
+        }
+        
+        return result;
+    } catch (error) {
+        console.error("Error parsing facts from Gemini AI:", error);
+        if (error instanceof SyntaxError) {
+             throw new Error("Failed to parse the response from the AI. The AI did not return valid JSON.");
+        }
+        throw error; // Re-throw the original or a new error
+    }
+};
+
 
 export const getTopicExplanationWithImage = async (topic: string, language: Language, style: ResponseStyle): Promise<{ explanation: string; imageUrl: string | null }> => {
     const cacheKey = `topicExplanation-${topic}-${language}-${style}`;
@@ -35,7 +119,7 @@ export const getTopicExplanationWithImage = async (topic: string, language: Lang
     1. "explanation": A well-structured string using markdown for formatting ONLY IF the language is English.
     2. "imagePrompt": A concise, descriptive English prompt for an AI image generator to create a relevant, visually appealing image for this topic.`;
 
-    const textResponse = await ai.models.generateContent({
+    const textResponse: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
@@ -49,7 +133,7 @@ export const getTopicExplanationWithImage = async (topic: string, language: Lang
                 required: ['explanation', 'imagePrompt']
             }
         }
-    });
+    }));
 
     const parsedText = JSON.parse(textResponse.text);
     const { explanation, imagePrompt } = parsedText;
@@ -57,11 +141,11 @@ export const getTopicExplanationWithImage = async (topic: string, language: Lang
     let imageUrl = null;
     if (imagePrompt) {
         try {
-            const imageResponse = await ai.models.generateContent({
+            const imageResponse: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
                 model: 'gemini-2.5-flash-image',
                 contents: { parts: [{ text: imagePrompt }] },
                 config: { responseModalities: [Modality.IMAGE] },
-            });
+            }));
             const part = imageResponse.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
             if (part && part.inlineData) {
                 imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
@@ -86,7 +170,7 @@ export const generateLessonPlan = async (topic: string, grade: string, duration:
 
   const prompt = `Generate a detailed lesson plan for a '${grade}' class on the topic of '${topic}'. The lesson should be designed for a duration of '${duration}'. The output should be a JSON object, with all text content in ${languageMap[language]}.`;
   
-  const response = await ai.models.generateContent({
+  const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
     model: 'gemini-2.5-pro',
     contents: prompt,
     config: {
@@ -117,7 +201,7 @@ export const generateLessonPlan = async (topic: string, grade: string, duration:
         required: ['title', 'gradeLevel', 'duration', 'learningObjectives', 'materials', 'activities', 'assessment']
       }
     }
-  });
+  }));
 
   const result = JSON.parse(response.text.trim()) as LessonPlan;
   cache.set(cacheKey, result);
@@ -133,10 +217,10 @@ export const getSimpleResponse = async (prompt: string, language: Language): Pro
     console.log(`[Cache Miss] Fetching data for: ${cacheKey}`);
 
     const fullPrompt = `${prompt} \n\nRespond in ${languageMap[language]}. ${markdownFixPrompt(language)}`;
-    const response = await ai.models.generateContent({
+    const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash-lite',
         contents: fullPrompt,
-    });
+    }));
 
     const result = response.text;
     cache.set(cacheKey, result);
@@ -154,23 +238,23 @@ export const getSmartResponse = async (prompt: string, imageBase64: string | nul
         parts.unshift({ inlineData: { mimeType, data } });
     }
 
-    const response = await ai.models.generateContent({
+    const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
         model,
         contents: { parts },
         ...(useThinkingMode && { config: { thinkingConfig: { thinkingBudget: 32768 } } }),
-    });
+    }));
     return response.text;
 };
 
 export const generateSpeech = async (text: string): Promise<string> => {
-    const response = await ai.models.generateContent({
+    const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text }] }],
         config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
         },
-    });
+    }));
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!base64Audio) throw new Error("No audio data returned from API.");
     return base64Audio;
@@ -192,7 +276,7 @@ export const generateVisualPresentation = async (topic: string, numSlides: numbe
     4. A descriptive, artistic English "imagePrompt" for an AI image generator to create a relevant background image.
     The output must be a single JSON object.`;
 
-    const textResponse = await ai.models.generateContent({
+    const textResponse: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-pro',
         contents: textGenPrompt,
         config: {
@@ -219,17 +303,17 @@ export const generateVisualPresentation = async (topic: string, numSlides: numbe
                 required: ['topic', 'slides']
             }
         }
-    });
+    }));
 
     const presentationOutline = JSON.parse(textResponse.text) as Presentation & { slides: { imagePrompt: string }[] };
     
     for (const slide of presentationOutline.slides) {
         try {
-            const imageResponse = await ai.models.generateContent({
+            const imageResponse: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
                 model: 'gemini-2.5-flash-image',
                 contents: { parts: [{ text: slide.imagePrompt }] },
                 config: { responseModalities: [Modality.IMAGE] },
-            });
+            }));
             const part = imageResponse.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
             if (part && part.inlineData) {
                 (slide as any).imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
@@ -252,7 +336,7 @@ export const generateQuiz = async (topic: string, numQuestions: number, difficul
 
     const prompt = `Generate a quiz with ${numQuestions} questions on the topic of '${topic}' for a ${difficulty} level. The output must be a JSON object, with all text content in ${languageMap[language]}. Each question must have exactly 4 options and one correct answer.`;
     
-    const response = await ai.models.generateContent({
+    const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
@@ -277,7 +361,7 @@ export const generateQuiz = async (topic: string, numQuestions: number, difficul
                 required: ['topic', 'questions']
             }
         }
-    });
+    }));
 
     const result = JSON.parse(response.text.trim()) as Quiz;
     cache.set(cacheKey, result);
@@ -294,9 +378,9 @@ export const getLiveResponse = async (prompt: string, imageBase64: string, langu
         { text: fullPrompt }
     ];
 
-    const response = await ai.models.generateContent({
+    const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: { parts },
-    });
+    }));
     return response.text;
 };

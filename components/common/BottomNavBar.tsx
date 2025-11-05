@@ -10,11 +10,11 @@ const BottomNavBar: React.FC = () => {
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
     // Define primary and secondary tools for each role
-    const studentPrimary = ['homeworkHelper', 'topicExplorer', 'quizGenerator'];
-    const studentSecondary = ['visualAssistant', 'myLibrary', 'myReports', 'settings'];
+    const studentPrimary = ['homeworkHelper', 'topicExplorer', 'factFinder'];
+    const studentSecondary = ['visualAssistant', 'quizGenerator', 'myLibrary', 'myReports', 'settings'];
     
     const teacherPrimary = ['lessonPlanner', 'activityGenerator', 'quizGeneratorTeacher'];
-    const teacherSecondary = ['presentationGenerator', 'reportCardHelper', 'visualAssistantTeacher', 'settings'];
+    const teacherSecondary = ['presentationGenerator', 'reportCardHelper', 'factFinder', 'visualAssistantTeacher', 'settings'];
     
     const primaryTools = userRole === 'student' ? studentPrimary : teacherPrimary;
     const secondaryTools = userRole === 'student' ? studentSecondary : teacherSecondary;

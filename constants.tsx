@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole } from './types';
-import { BookOpenIcon, SparklesIcon, BeakerIcon, ClipboardDocumentListIcon, LightBulbIcon, PresentationChartBarIcon, AcademicCapIcon, CameraIcon, SettingsIcon, LibraryIcon, ReportIcon } from './components/icons';
+import { BookOpenIcon, SparklesIcon, BeakerIcon, ClipboardDocumentListIcon, LightBulbIcon, PresentationChartBarIcon, AcademicCapIcon, CameraIcon, SettingsIcon, LibraryIcon, ReportIcon, InformationCircleIcon } from './components/icons';
 
 export const TOOLS: Record<string, ToolConfig> = {
   // Student Tools
@@ -16,6 +16,13 @@ export const TOOLS: Record<string, ToolConfig> = {
     descriptionKey: 'topicExplorer_desc',
     categoryKey: 'forStudents',
     icon: <SparklesIcon />,
+    role: 'student',
+  },
+  factFinder: {
+    nameKey: 'factFinder_name',
+    descriptionKey: 'factFinder_desc',
+    categoryKey: 'forStudents',
+    icon: <InformationCircleIcon />,
     role: 'student',
   },
   visualAssistant: {

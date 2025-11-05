@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useContext } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality, Blob, ClientMessage } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality, Blob } from '@google/genai';
 import { Language } from '../../types';
 import { useTranslations } from '../../hooks/useTranslations';
 import { AppContext } from '../../contexts/AppContext';
@@ -7,7 +7,6 @@ import UpgradePrompt from '../common/UpgradePrompt';
 import { ToolKey } from '../../constants';
 import { SwitchCameraIcon } from '../icons';
 import Button from '../common/Button';
-import Spinner from '../common/Spinner';
 
 // #region Helper Functions
 // --- Audio Decoding (for TTS) ---
@@ -80,11 +79,12 @@ const BackIcon: React.FC = () => (
 type Transcription = { role: 'user' | 'model'; text: string; isFinal: boolean };
 
 const VisualAssistant: React.FC = () => {
-    const { canUseFeature, useFeature, setActiveTool, userRole, language } = useContext(AppContext);
-    const { t } = useTranslations();
+    const { canUseFeature, useFeature, setActiveTool, userRole } = useContext(AppContext);
+    const { language } = useTranslations();
     const defaultTool = userRole === 'teacher' ? 'lessonPlanner' : 'homeworkHelper';
 
     const [isSessionActive, setIsSessionActive] = useState(false);
+    const [isStarting, setIsStarting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [limitError, setLimitError] = useState<string | null>(null);
     const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
@@ -103,14 +103,12 @@ const VisualAssistant: React.FC = () => {
     const nextStartTimeRef = useRef(0);
     const audioSourcesRef = useRef(new Set<AudioBufferSourceNode>());
 
-    const stopSession = useCallback(async () => {
+    const stopSession = useCallback(async (shouldNavigateBack = false) => {
         if (sessionPromiseRef.current) {
             try {
                 const session = await sessionPromiseRef.current;
                 session.close();
-            } catch (e) {
-                console.error("Error closing session:", e);
-            }
+            } catch (e) { console.error("Error closing session:", e); }
             sessionPromiseRef.current = null;
         }
 
@@ -121,43 +119,54 @@ const VisualAssistant: React.FC = () => {
         if (videoRef.current) videoRef.current.srcObject = null;
         if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
 
-        if (scriptProcessorRef.current) scriptProcessorRef.current.disconnect();
-        if (mediaStreamSourceRef.current) mediaStreamSourceRef.current.disconnect();
-        inputAudioContextRef.current?.close();
-        outputAudioContextRef.current?.close();
+        scriptProcessorRef.current?.disconnect();
+        mediaStreamSourceRef.current?.disconnect();
+        inputAudioContextRef.current?.close().catch(console.error);
+        outputAudioContextRef.current?.close().catch(console.error);
 
         audioSourcesRef.current.forEach(source => source.stop());
         audioSourcesRef.current.clear();
 
         setIsSessionActive(false);
+        setIsStarting(false);
         setVideoDevices([]);
         setSelectedDeviceId('');
         setTranscriptionHistory([]);
         nextStartTimeRef.current = 0;
-    }, []);
+        
+        if (shouldNavigateBack) {
+            setActiveTool(defaultTool as ToolKey);
+        }
+    }, [setActiveTool, defaultTool]);
     
     const startSession = async () => {
+        setIsStarting(true);
         setError(null);
         setLimitError(null);
         if (!canUseFeature('visualAssistant')) {
             setLimitError("You don't have enough credits for this feature (10 required).");
+            setIsStarting(false);
             return;
         }
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            streamRef.current = stream; // Keep the full stream ref for audio
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' }, 
+                audio: true 
+            });
+            streamRef.current = stream;
             
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoInputs = devices.filter(d => d.kind === 'videoinput');
             setVideoDevices(videoInputs);
-            const initialDeviceId = videoInputs.length > 0 ? videoInputs[0].deviceId : '';
-            setSelectedDeviceId(initialDeviceId);
+            const currentTrack = stream.getVideoTracks()[0];
+            const currentDeviceId = currentTrack.getSettings().deviceId;
+            setSelectedDeviceId(currentDeviceId || (videoInputs.length > 0 ? videoInputs[0].deviceId : ''));
+
             if (videoRef.current) {
-                 videoRef.current.srcObject = new MediaStream(stream.getVideoTracks());
+                 videoRef.current.srcObject = stream;
             }
 
-            // Init Audio Contexts
             inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
             outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
             
@@ -172,11 +181,11 @@ const VisualAssistant: React.FC = () => {
                 },
                 callbacks: {
                     onopen: () => {
-                        // Audio Input Streaming
                         const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
                         mediaStreamSourceRef.current = source;
                         const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
                         scriptProcessorRef.current = scriptProcessor;
+
                         scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
                             const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
                             const pcmBlob = createBlob(inputData);
@@ -186,168 +195,204 @@ const VisualAssistant: React.FC = () => {
                         };
                         source.connect(scriptProcessor);
                         scriptProcessor.connect(inputAudioContextRef.current!.destination);
-
-                        // Video Input Streaming
-                        frameIntervalRef.current = window.setInterval(() => {
-                            if (videoRef.current && canvasRef.current) {
-                                const video = videoRef.current;
-                                const canvas = canvasRef.current;
-                                canvas.width = video.videoWidth;
-                                canvas.height = video.videoHeight;
-                                canvas.getContext('2d')?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-                                canvas.toBlob(async (blob) => {
-                                    if (blob) {
-                                        const base64Data = await blobToBase64(blob);
-                                        sessionPromiseRef.current?.then((session) => {
-                                            session.sendRealtimeInput({ media: { data: base64Data, mimeType: 'image/jpeg' } });
-                                        });
-                                    }
-                                }, 'image/jpeg', 0.7);
-                            }
-                        }, 500); // 2 FPS
                     },
                     onmessage: async (message: LiveServerMessage) => {
-                        // Handle Transcription
-                        const { inputTranscription, outputTranscription, turnComplete } = message.serverContent ?? {};
-                        setTranscriptionHistory(prev => {
-                            let history = [...prev];
-                            if (inputTranscription) {
-                                const last = history[history.length - 1];
+                        if (message.serverContent?.inputTranscription) {
+                            const { text, isFinal } = message.serverContent.inputTranscription;
+                            setTranscriptionHistory(prev => {
+                                const last = prev[prev.length - 1];
                                 if (last?.role === 'user' && !last.isFinal) {
-                                    last.text += inputTranscription.text;
-                                } else {
-                                    history.push({ role: 'user', text: inputTranscription.text, isFinal: false });
+                                    const updatedLast = { ...last, text: last.text + text, isFinal: isFinal ?? false };
+                                    return [...prev.slice(0, -1), updatedLast];
                                 }
-                            }
-                            if (outputTranscription) {
-                                 const last = history[history.length - 1];
+                                return [...prev, { role: 'user', text, isFinal: isFinal ?? false }];
+                            });
+                        }
+                
+                        if (message.serverContent?.outputTranscription) {
+                             const { text, isFinal } = message.serverContent.outputTranscription;
+                             setTranscriptionHistory(prev => {
+                                const last = prev[prev.length - 1];
                                 if (last?.role === 'model' && !last.isFinal) {
-                                    last.text += outputTranscription.text;
-                                } else {
-                                    history.push({ role: 'model', text: outputTranscription.text, isFinal: false });
+                                     const updatedLast = { ...last, text: last.text + text, isFinal: isFinal ?? false };
+                                    return [...prev.slice(0, -1), updatedLast];
                                 }
-                            }
-                            if (turnComplete) {
-                                history = history.map(t => ({...t, isFinal: true}));
-                            }
-                            return history;
-                        });
+                                return [...prev, { role: 'model', text, isFinal: isFinal ?? false }];
+                            });
+                        }
 
-                        // Handle Audio Output
-                        const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-                        if (base64Audio && outputAudioContextRef.current) {
-                            const ctx = outputAudioContextRef.current;
-                            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
-                            const audioBuffer = await decodeAudioData(decode(base64Audio), ctx, 24000, 1);
-                            const source = ctx.createBufferSource();
+                        const base64EncodedAudioString = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+                        if (base64EncodedAudioString && outputAudioContextRef.current) {
+                            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputAudioContextRef.current.currentTime);
+                            const audioBuffer = await decodeAudioData(decode(base64EncodedAudioString), outputAudioContextRef.current, 24000, 1);
+                            const source = outputAudioContextRef.current.createBufferSource();
                             source.buffer = audioBuffer;
-                            source.connect(ctx.destination);
-                            source.addEventListener('ended', () => { audioSourcesRef.current.delete(source); });
+                            source.connect(outputAudioContextRef.current.destination);
+                            source.addEventListener('ended', () => {
+                                audioSourcesRef.current.delete(source);
+                            });
                             source.start(nextStartTimeRef.current);
                             nextStartTimeRef.current += audioBuffer.duration;
                             audioSourcesRef.current.add(source);
                         }
+                        
+                        const interrupted = message.serverContent?.interrupted;
+                        if (interrupted) {
+                            audioSourcesRef.current.forEach(source => {
+                                source.stop();
+                                audioSourcesRef.current.delete(source);
+                            });
+                            nextStartTimeRef.current = 0;
+                        }
                     },
                     onerror: (e: ErrorEvent) => {
-                        console.error('Session error', e);
-                        setError('A session error occurred. Please restart.');
+                        console.error("Session error:", e);
+                        setError("A session error occurred. Please try again.");
                         stopSession();
                     },
-                    onclose: () => {
-                        console.log('Session closed');
+                    onclose: (e: CloseEvent) => {
+                        console.log("Session closed:", e);
+                        stopSession();
                     },
                 }
             });
-
+            
+            await sessionPromiseRef.current;
             useFeature('visualAssistant');
             setIsSessionActive(true);
-        } catch (err) {
-            console.error('Error accessing media devices.', err);
-            setError('Could not access camera/microphone. Please grant permissions and try again.');
+
+            if (canvasRef.current && videoRef.current) {
+                const canvasEl = canvasRef.current;
+                const videoEl = videoRef.current;
+                const ctx = canvasEl.getContext('2d');
+    
+                if (ctx) {
+                    frameIntervalRef.current = window.setInterval(() => {
+                        canvasEl.width = videoEl.videoWidth;
+                        canvasEl.height = videoEl.videoHeight;
+                        ctx.drawImage(videoEl, 0, 0, videoEl.videoWidth, videoEl.videoHeight);
+                        canvasEl.toBlob(
+                            async (blob) => {
+                                if (blob) {
+                                    const base64Data = await blobToBase64(blob);
+                                    sessionPromiseRef.current?.then((session) => {
+                                      session.sendRealtimeInput({
+                                        media: { data: base64Data, mimeType: 'image/jpeg' }
+                                      });
+                                    });
+                                }
+                            },
+                            'image/jpeg',
+                            0.8 
+                        );
+                    }, 1000 / 2); 
+                }
+            }
+        } catch (e: any) {
+            console.error("Failed to start session:", e);
+            setError(`Could not start session: ${e.message}`);
+            stopSession();
+        } finally {
+            setIsStarting(false);
         }
     };
-    
+
+    const switchCamera = useCallback(async () => {
+        if (videoDevices.length > 1) {
+            const currentTrack = streamRef.current?.getVideoTracks()[0];
+            const currentDeviceId = currentTrack?.getSettings().deviceId;
+            const currentIndex = videoDevices.findIndex(d => d.deviceId === currentDeviceId);
+            const nextDevice = videoDevices[(currentIndex + 1) % videoDevices.length];
+            
+            if (nextDevice) {
+                setSelectedDeviceId(nextDevice.deviceId);
+            }
+        }
+    }, [videoDevices]);
+
+    useEffect(() => {
+        const changeStream = async () => {
+            if (isSessionActive && selectedDeviceId && streamRef.current) {
+                const currentAudioTracks = streamRef.current.getAudioTracks();
+                streamRef.current.getVideoTracks().forEach(track => track.stop());
+
+                try {
+                    const newStream = await navigator.mediaDevices.getUserMedia({
+                        video: { deviceId: { exact: selectedDeviceId } },
+                    });
+                    const newVideoTrack = newStream.getVideoTracks()[0];
+                    streamRef.current.addTrack(newVideoTrack);
+                    streamRef.current.removeTrack(streamRef.current.getVideoTracks()[0]);
+
+                    if (videoRef.current) {
+                        const mediaStreamWithAudio = new MediaStream([...currentAudioTracks, newVideoTrack]);
+                        videoRef.current.srcObject = mediaStreamWithAudio;
+                    }
+                } catch(e) {
+                    console.error("Error switching camera:", e);
+                    setError("Could not switch camera. Please check permissions.");
+                }
+            }
+        };
+        if(selectedDeviceId && selectedDeviceId !== streamRef.current?.getVideoTracks()[0]?.getSettings().deviceId) {
+            changeStream();
+        }
+    }, [selectedDeviceId, isSessionActive]);
+
     useEffect(() => {
         return () => {
             stopSession();
         };
     }, [stopSession]);
-    
-    useEffect(() => {
-        if (isSessionActive && selectedDeviceId && streamRef.current) {
-            streamRef.current.getVideoTracks().forEach(track => track.stop());
-            navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: selectedDeviceId } } })
-                .then(newStream => {
-                    const newVideoTrack = newStream.getVideoTracks()[0];
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = new MediaStream([newVideoTrack]);
-                    }
-                    // Replace the video track in the main stream
-                    const oldTrack = streamRef.current!.getVideoTracks()[0];
-                    streamRef.current!.removeTrack(oldTrack);
-                    streamRef.current!.addTrack(newVideoTrack);
-                })
-                .catch(err => {
-                    console.error('Error switching camera.', err);
-                    setError('Could not switch to the selected camera.');
-                });
-        }
-    }, [isSessionActive, selectedDeviceId]);
 
     return (
-        <div className="h-full w-full flex flex-col bg-slate-900 text-white antialiased">
-             <button
-                onClick={() => isSessionActive ? stopSession() : setActiveTool(defaultTool as ToolKey)}
-                className="lg:hidden absolute top-5 left-5 z-30 p-2 bg-black/30 rounded-full text-white hover:bg-black/50 transition-colors"
-                aria-label="Go back"
-            >
-                <BackIcon />
-            </button>
-            
+        <div className="h-full w-full bg-black flex flex-col items-center justify-center relative text-white">
+            <canvas ref={canvasRef} className="hidden" />
+    
             {!isSessionActive ? (
-                <div className="flex-1 flex flex-col items-center justify-center p-4">
-                    <div className="bg-slate-800 p-8 rounded-2xl text-center max-w-sm shadow-lg border border-slate-700">
-                        <h3 className="text-xl font-semibold mb-4 text-white">Start a Visual Session</h3>
-                        <p className="mb-6 text-gray-300">Enable your camera and microphone to ask questions about what you see.</p>
-                        <Button onClick={startSession}>Start Session</Button>
-                        <div className="mt-4 space-y-2">
-                            {limitError && <UpgradePrompt message={limitError} />}
-                            {error && <div className="p-4 rounded-lg bg-red-900/50 border border-red-500/50 text-red-200 text-sm"><p>{error}</p></div>}
-                        </div>
-                    </div>
+                <div className="text-center p-4">
+                     <button onClick={() => stopSession(true)} className="absolute top-4 left-4 p-2 bg-black/30 rounded-full hover:bg-black/50 transition-colors z-10">
+                        <BackIcon />
+                    </button>
+                    {limitError ? (
+                        <UpgradePrompt message={limitError} />
+                    ) : (
+                        <>
+                            <h1 className="text-2xl font-bold mb-4">Visual Assistant</h1>
+                            <p className="mb-8 text-gray-300 max-w-md mx-auto">Start a live conversation with AI. Point your camera at something and ask a question.</p>
+                            <Button onClick={startSession} isLoading={isStarting}>
+                                {isStarting ? 'Requesting Permissions...' : 'Start Session'}
+                            </Button>
+                        </>
+                    )}
+                    {error && <p className="mt-4 text-red-400">{error}</p>}
                 </div>
             ) : (
-                <div className="relative flex-1 w-full overflow-hidden bg-black flex flex-col">
-                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover absolute inset-0"></video>
-                    <canvas ref={canvasRef} className="hidden"></canvas>
-
-                    {videoDevices.length > 1 && (
-                        <button
-                            onClick={() => {
-                                const currentIndex = videoDevices.findIndex(d => d.deviceId === selectedDeviceId);
-                                const nextIndex = (currentIndex + 1) % videoDevices.length;
-                                setSelectedDeviceId(videoDevices[nextIndex].deviceId);
-                            }}
-                            className="absolute top-5 right-5 z-20 p-2 bg-black/40 rounded-full text-white hover:bg-black/60 transition-colors"
-                            aria-label="Switch Camera"
-                        >
-                            <SwitchCameraIcon className="w-5 h-5" />
-                        </button>
-                    )}
+                <>
+                    <video ref={videoRef} autoPlay playsInline muted className="absolute top-0 left-0 w-full h-full object-cover z-0" />
+                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/80 via-black/20 to-black/80 z-10" />
                     
-                    {/* Transcription Overlay */}
-                    <div className="absolute bottom-24 left-4 right-4 z-10 p-4 bg-black/50 backdrop-blur-sm rounded-lg max-h-48 overflow-y-auto scrollbar-thin">
-                        {transcriptionHistory.map((item, index) => (
-                           <p key={index} className={`font-medium ${item.role === 'user' ? 'text-gray-300 italic' : 'text-white'}`}>
-                               <span className="font-bold capitalize">{item.role}: </span>{item.text}
-                           </p> 
-                        ))}
+                    <div className="absolute top-4 left-4 right-4 z-20 flex justify-between">
+                        <button onClick={() => stopSession(true)} className="p-2 bg-black/30 rounded-full hover:bg-black/50 transition-colors">
+                            <BackIcon />
+                        </button>
+                        {videoDevices.length > 1 && (
+                             <button onClick={switchCamera} className="p-2 bg-black/30 rounded-full hover:bg-black/50 transition-colors">
+                                <SwitchCameraIcon />
+                            </button>
+                        )}
                     </div>
-
-                    <div className="w-full mt-auto p-6 pt-4 bg-gradient-to-t from-slate-900/80 via-slate-900/50 to-transparent flex flex-col items-center z-10">
-                       <Button onClick={stopSession} className="w-full max-w-xs from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 hover:shadow-rose-500/50">End Session</Button>
+    
+                    <div className="relative z-20 flex flex-col justify-end w-full h-full p-4 md:p-8">
+                        <div className="max-h-[50%] overflow-y-auto space-y-2 text-lg font-medium flex flex-col">
+                            {transcriptionHistory.map((item, index) => (
+                                <div key={index} className={`p-3 rounded-xl max-w-[80%] break-words ${item.role === 'user' ? 'bg-blue-600/70 self-end ml-auto' : 'bg-gray-700/70 self-start mr-auto'}`}>
+                                    <span className={item.isFinal ? 'opacity-100' : 'opacity-70'}>{item.text}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                </>
             )}
         </div>
     );
