@@ -20,6 +20,7 @@ const DAILY_LIMITS = {
 
 interface AppContextType {
   user: User | null;
+  firebaseUser: FirebaseUser | null; // <-- Added this
   signOut: () => Promise<void>;
   userRole: UserRole | null;
   setUserRole: (role: UserRole | null) => void;
@@ -160,6 +161,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   
   const startGuestSession = useCallback(() => {
     setUser({ name: 'Guest Student', email: 'guest@eduspark.ai', picture: '' });
+    setFirebaseUser(null);
     setUserRoleState('student');
     // Set default free tier values for guest
     setSubscriptionTier('free');
@@ -240,13 +242,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [firebaseUser, credits, usage]);
   
   const value = useMemo(() => ({
-    user, signOut, userRole, setUserRole, theme, toggleTheme, language, setLanguage,
+    user, firebaseUser, signOut, userRole, setUserRole, theme, toggleTheme, language, setLanguage,
     lessonLists, addLessonList, addTopicToLessonList, quizAttempts, addQuizAttempt,
     activeQuizTopic, setActiveQuizTopic, activeTool, setActiveTool,
     subscriptionTier, credits, usage, isSubscriptionModalOpen, setIsSubscriptionModalOpen,
     upgradeSubscription, canUseFeature, useFeature, startGuestSession
   }), [
-    user, signOut, userRole, theme, language, lessonLists, quizAttempts, activeQuizTopic, activeTool,
+    user, firebaseUser, signOut, userRole, theme, language, lessonLists, quizAttempts, activeQuizTopic, activeTool,
     subscriptionTier, credits, usage, isSubscriptionModalOpen, startGuestSession,
     setUserRole, toggleTheme, setLanguage, addLessonList, addTopicToLessonList, addQuizAttempt,
     setActiveTool, upgradeSubscription, canUseFeature, useFeature

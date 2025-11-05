@@ -12,7 +12,11 @@
     "react-dom": "^19.2.0",
     "@google/genai": "^1.28.0",
     "react": "^19.2.0",
-    "firebase": "^12.5.0"
+    "firebase": "^12.5.0",
+    "firebase-admin": "^13.5.0",
+    "@vercel/node": "^5.5.4",
+    "micro": "^10.0.1",
+    "stripe": "^19.2.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

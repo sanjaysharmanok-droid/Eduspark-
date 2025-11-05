@@ -1,8 +1,10 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { AppContext } from '../../contexts/AppContext';
 import Modal from './Modal';
 import Button from './Button';
 import { CheckCircleIcon, XCircleIcon } from '../icons';
+import { initiatePayment } from '../../services/paymentService';
+import { SubscriptionTier } from '../../types';
 
 const TierCard: React.FC<{
     tier: string;
@@ -10,9 +12,10 @@ const TierCard: React.FC<{
     description: string;
     features: { text: string; included: boolean }[];
     currentTier: string;
-    onSelect: () => void;
+    onSelect: (tier: 'silver' | 'gold') => void;
+    isLoading: boolean;
     isPopular?: boolean;
-}> = ({ tier, price, description, features, currentTier, onSelect, isPopular = false }) => {
+}> = ({ tier, price, description, features, currentTier, onSelect, isLoading, isPopular = false }) => {
     
     const tierKey = tier.toLowerCase() as 'free' | 'silver' | 'gold';
     const isCurrent = currentTier === tierKey;
@@ -38,8 +41,11 @@ const TierCard: React.FC<{
                 {isCurrent ? (
                     <Button className="w-full bg-white/20 hover:bg-white/20 cursor-default" disabled>Current Plan</Button>
                 ) : (
-                    <Button onClick={onSelect} className={`w-full ${tierKey === 'free' ? 'hidden' : ''} ${isPopular ? '' : 'from-gray-600 to-slate-700 hover:shadow-slate-500/50'}`}>
-                        {currentTier === 'free' ? 'Upgrade Plan' : (tierKey === 'gold' ? 'Upgrade' : 'Downgrade')}
+                    <Button 
+                        onClick={() => onSelect(tierKey as 'silver' | 'gold')} 
+                        isLoading={isLoading}
+                        className={`w-full ${tierKey === 'free' ? 'hidden' : ''} ${isPopular ? '' : 'from-gray-600 to-slate-700 hover:shadow-slate-500/50'}`}>
+                        {isLoading ? 'Processing...' : (currentTier === 'free' ? 'Upgrade Plan' : (tierKey === 'gold' ? 'Upgrade' : 'Downgrade'))}
                     </Button>
                 )}
             </div>
@@ -48,7 +54,29 @@ const TierCard: React.FC<{
 };
 
 const SubscriptionModal: React.FC = () => {
-    const { isSubscriptionModalOpen, setIsSubscriptionModalOpen, subscriptionTier, upgradeSubscription } = useContext(AppContext);
+    const { isSubscriptionModalOpen, setIsSubscriptionModalOpen, subscriptionTier, firebaseUser } = useContext(AppContext);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handlePlanSelect = async (tier: 'silver' | 'gold') => {
+        if (!firebaseUser) {
+            setError("You must be logged in to upgrade your plan. Guest users cannot subscribe.");
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+        try {
+            await initiatePayment(tier, firebaseUser.uid);
+            // If initiatePayment is successful, it will redirect the user to Stripe.
+            // There's no need to handle a success case here, as the page will navigate away.
+        } catch (err: any) {
+            console.error("Payment initiation failed:", err);
+            setError(err.message || "Could not start the payment process. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const planData = {
         free: {
@@ -65,7 +93,7 @@ const SubscriptionModal: React.FC = () => {
             ],
         },
         silver: {
-            price: '$9.99',
+            price: '₹499/mo',
             description: 'For dedicated students & teachers',
             features: [
                 { text: 'Unlimited Topic Searches', included: true },
@@ -78,7 +106,7 @@ const SubscriptionModal: React.FC = () => {
             ],
         },
         gold: {
-            price: '$19.99',
+            price: '₹999/mo',
             description: 'For power users & professionals',
             features: [
                 { text: 'All Silver features, plus:', included: true },
@@ -96,6 +124,12 @@ const SubscriptionModal: React.FC = () => {
         <Modal isOpen={isSubscriptionModalOpen} onClose={() => setIsSubscriptionModalOpen(false)} title="Upgrade Your Plan">
             <div className="p-2">
                 <p className="text-center text-gray-300 mb-8">Choose the plan that best fits your educational journey.</p>
+                {error && (
+                    <div className="mb-4 p-3 text-center bg-red-900/50 border border-red-500/50 text-red-200 rounded-lg">
+                        <p className="font-semibold">Payment Error</p>
+                        <p className="text-sm">{error}</p>
+                    </div>
+                )}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
                     <TierCard
                         tier="Free"
@@ -104,6 +138,7 @@ const SubscriptionModal: React.FC = () => {
                         features={planData.free.features}
                         currentTier={subscriptionTier}
                         onSelect={() => {}}
+                        isLoading={false}
                     />
                      <TierCard
                         tier="Silver"
@@ -111,7 +146,8 @@ const SubscriptionModal: React.FC = () => {
                         description={planData.silver.description}
                         features={planData.silver.features}
                         currentTier={subscriptionTier}
-                        onSelect={() => upgradeSubscription('silver')}
+                        onSelect={handlePlanSelect}
+                        isLoading={isLoading}
                     />
                      <TierCard
                         tier="Gold"
@@ -119,7 +155,8 @@ const SubscriptionModal: React.FC = () => {
                         description={planData.gold.description}
                         features={planData.gold.features}
                         currentTier={subscriptionTier}
-                        onSelect={() => upgradeSubscription('gold')}
+                        onSelect={handlePlanSelect}
+                        isLoading={isLoading}
                         isPopular
                     />
                 </div>
