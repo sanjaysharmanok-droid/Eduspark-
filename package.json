@@ -9,15 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react-dom": "^19.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "@google/genai": "^1.28.0",
-    "react": "^19.2.0",
     "firebase": "^12.5.0",
-    "firebase-admin": "^13.5.0",
     "@vercel/node": "^5.5.4",
-    "micro": "^10.0.1",
-    "cashfree-pg": "^4.0.2",
     "stripe": "^19.2.1",
+    "micro": "^10.0.1",
+    "firebase-admin": "^13.5.0",
+    "cashfree-pg": "^5.1.0",
     "crypto": "^1.0.1",
     "buffer": "^6.0.3"
   },

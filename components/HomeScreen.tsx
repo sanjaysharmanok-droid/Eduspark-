@@ -6,6 +6,7 @@ import { TOOLS, ToolKey } from '../constants';
 import { signInWithGoogle } from '../services/authService';
 import Button from './common/Button';
 import Logo from './common/Logo';
+import Footer from './common/Footer';
 
 const HomeScreen: React.FC = () => {
   const { user, setUserRole, startGuestSession } = useContext(AppContext);
@@ -124,9 +125,8 @@ const HomeScreen: React.FC = () => {
         </div>
       </div>
       
-      <div className="relative z-10 mt-16 text-center text-sm text-gray-500 dark:text-gray-400 animate-fade-in-up" style={{ animationDelay: '1.1s' }}>
-        <p>Made with ❤️ in India for the world.</p>
-        <p className="mt-1">Powered by - Vinayak Shikshan Sansthan, Ankhisar</p>
+      <div className="relative z-10 w-full mt-16 animate-fade-in-up" style={{ animationDelay: '1.1s' }}>
+        <Footer />
       </div>
     </div>
   );

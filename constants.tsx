@@ -120,6 +120,26 @@ export const TOOLS: Record<string, ToolConfig> = {
     icon: <SettingsIcon />,
     role: 'student', // Role is nominal; visibility is handled in Sidebar for all users
   },
+  
+  // Static Pages (for routing)
+  about: {
+    nameKey: 'about_name',
+    descriptionKey: 'about_desc',
+    icon: <InformationCircleIcon />,
+    role: 'student',
+  },
+  privacyPolicy: {
+    nameKey: 'privacyPolicy_name',
+    descriptionKey: 'privacyPolicy_desc',
+    icon: <DocumentTextIcon />,
+    role: 'student',
+  },
+  termsAndConditions: {
+    nameKey: 'termsAndConditions_name',
+    descriptionKey: 'termsAndConditions_desc',
+    icon: <ClipboardDocumentListIcon />,
+    role: 'student',
+  },
 };
 
 export type ToolKey = keyof typeof TOOLS;

@@ -50,4 +50,12 @@ export const translations = {
   // Response Controls
   outputLanguage: { en: 'Output Language', hi: 'आउटपुट भाषा', es: 'Idioma de Salida', fr: 'Langue de Sortie' },
   responseStyle: { en: 'Response Style', hi: 'प्रतिक्रिया शैली', es: 'Estilo de Respuesta', fr: 'Style de Réponse' },
+  
+  // New Pages
+  about_name: { en: 'About Us', hi: 'हमारे बारे में', es: 'Sobre Nosotros', fr: 'À Propos de Nous' },
+  about_desc: { en: 'Learn more about the mission and vision of EduSpark AI.', hi: 'एडस्पार्क एआई के मिशन और विजन के बारे में और जानें।', es: 'Conozca más sobre la misión y visión de EduSpark AI.', fr: 'En savoir plus sur la mission et la vision d\'EduSpark AI.' },
+  privacyPolicy_name: { en: 'Privacy Policy', hi: 'गोपनीयता नीति', es: 'Política de Privacidad', fr: 'Politique de Confidentialité' },
+  privacyPolicy_desc: { en: 'How we collect, use, and protect your data.', hi: 'हम आपके डेटा को कैसे एकत्रित, उपयोग और संरक्षित करते हैं।', es: 'Cómo recopilamos, usamos y protegemos sus datos.', fr: 'Comment nous collectons, utilisons et protégeons vos données.' },
+  termsAndConditions_name: { en: 'Terms & Conditions', hi: 'नियम एवं शर्तें', es: 'Términos y Condiciones', fr: 'Termes et Conditions' },
+  termsAndConditions_desc: { en: 'The rules and guidelines for using our services.', hi: 'हमारी सेवाओं का उपयोग करने के नियम और दिशानिर्देश।', es: 'Las reglas y pautas para usar nuestros servicios.', fr: 'Les règles et directives d\'utilisation de nos services.' },
 };

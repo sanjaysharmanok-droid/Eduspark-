@@ -1,10 +1,61 @@
 // This is a global object that will be available after the Cashfree SDK is dynamically loaded.
 declare const cashfree: any;
+// This is a global object that will be available after the Stripe SDK is loaded.
+declare const Stripe: any;
+
+/**
+ * =================================================================================================
+ * IMPORTANT: ADD YOUR STRIPE PUBLISHABLE KEY
+ * =================================================================================================
+ * This is a client-side key and is safe to expose in your frontend code.
+ * You can find this key in your Stripe Dashboard under Developers > API keys.
+ * It should start with `pk_test_...` for test mode or `pk_live_...` for live mode.
+ * =================================================================================================
+ */
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51Pg2bOSJ0AbB7rS999DFzEwFmDtlXM3fV0TA5f4sd2R01yHkFvM5bQW9LpXbY4gZ6c7V8jI9k0a1b2c3d4e5f6g7'; // REPLACE WITH YOUR KEY
+
+/**
+ * Initiates the Stripe payment process.
+ */
+const initiateStripePayment = async (tier: 'silver' | 'gold', userId: string): Promise<void> => {
+    console.log(`Initiating Stripe payment for ${tier} tier for user ${userId}.`);
+
+    if (!STRIPE_PUBLISHABLE_KEY || STRIPE_PUBLISHABLE_KEY.includes('REPLACE')) {
+         throw new Error('Stripe publishable key is not configured. Please add it in `services/paymentService.ts`.');
+    }
+
+    const stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+
+    const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            tier,
+            userId,
+            appUrl: window.location.origin, // Pass the current domain for success/cancel URLs
+        }),
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.json();
+        throw new Error(errorBody.message || 'Failed to create Stripe checkout session.');
+    }
+
+    const { sessionId } = await response.json();
+    if (!sessionId) {
+        throw new Error('Did not receive a session ID from the server.');
+    }
+
+    const { error } = await stripe.redirectToCheckout({ sessionId });
+
+    if (error) {
+        console.error("Stripe redirectToCheckout error:", error);
+        throw new Error(error.message || "Failed to redirect to Stripe checkout.");
+    }
+};
 
 /**
  * Loads the Cashfree SDK script dynamically onto the page.
- * This ensures the SDK is available before we try to use it.
- * @returns A promise that resolves when the script is loaded.
  */
 const loadCashfreeSDK = (): Promise<void> => {
   return new Promise((resolve, reject) => {
@@ -23,13 +74,8 @@ const loadCashfreeSDK = (): Promise<void> => {
 
 /**
  * Initiates the payment process for a selected subscription tier using Cashfree.
- *
- * @param tier The subscription tier the user wants to upgrade to ('silver' or 'gold').
- * @param userId The unique ID of the user making the purchase.
- * @param userEmail The email of the user.
- * @param userName The name of the user.
  */
-export const initiatePayment = async (tier: 'silver' | 'gold', userId: string, userEmail: string, userName: string): Promise<void> => {
+const initiateCashfreePayment = async (tier: 'silver' | 'gold', userId: string, userEmail: string, userName: string): Promise<void> => {
   console.log(`Initiating Cashfree payment for ${tier} tier for user ${userId}.`);
 
   await loadCashfreeSDK();
@@ -44,6 +90,7 @@ export const initiatePayment = async (tier: 'silver' | 'gold', userId: string, u
       userId,
       userEmail,
       userName,
+      appUrl: window.location.origin, // Pass the current domain for the return URL
     }),
   });
 
@@ -58,7 +105,6 @@ export const initiatePayment = async (tier: 'silver' | 'gold', userId: string, u
     throw new Error('Did not receive a payment session ID from the server.');
   }
 
-  // Wrap the Cashfree checkout call in a promise for better error handling.
   return new Promise<void>((resolve, reject) => {
     const checkoutOptions = {
       paymentSessionId: paymentSessionId,
@@ -66,16 +112,32 @@ export const initiatePayment = async (tier: 'silver' | 'gold', userId: string, u
     
     cashfree.checkout(checkoutOptions).then((result: any) => {
         if (result.error) {
-            // This error occurs if the modal fails to initialize or the user closes it.
             reject(new Error(result.error.message || "Payment window closed."));
         } else if (result.paymentDetails || result.redirect) {
-            // Payment was successful on the client or redirected.
-            // The final source of truth will be the webhook.
             resolve();
         } else {
-             // This case handles when the user closes the modal before completing the payment.
             reject(new Error("Payment window closed."));
         }
     });
   });
+};
+
+/**
+ * Orchestrates the payment process, selecting the appropriate provider based on user language.
+ * @param language The user's selected language code (e.g., 'en', 'hi').
+ */
+export const initiatePayment = async (
+    tier: 'silver' | 'gold',
+    userId: string,
+    userEmail: string,
+    userName: string,
+    language: string
+): Promise<void> => {
+    // Use Cashfree for users with Hindi language preference (likely in India).
+    // Use Stripe for others (international).
+    if (language === 'hi') {
+        return initiateCashfreePayment(tier, userId, userEmail, userName);
+    } else {
+        return initiateStripePayment(tier, userId);
+    }
 };

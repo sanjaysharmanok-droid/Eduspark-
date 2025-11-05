@@ -17,7 +17,8 @@ import { Cashfree } from 'cashfree-pg';
 const cashfree = new Cashfree({
     x_client_id: process.env.CASHFREE_APP_ID!,
     x_client_secret: process.env.CASHFREE_SECRET_KEY!,
-    x_environment: Cashfree.Environment.SANDBOX, // Use SANDBOX for testing, PRODUCTION for live payments.
+    // Set environment to PRODUCTION for live payments. Use SANDBOX for testing.
+    x_environment: Cashfree.Environment.PRODUCTION,
 });
 
 
@@ -27,9 +28,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { tier, userId, userEmail, userName } = req.body;
+    const { tier, userId, userEmail, userName, appUrl } = req.body;
 
-    if (!tier || !userId || !userEmail || !userName) {
+    if (!tier || !userId || !userEmail || !userName || !appUrl) {
       return res.status(400).json({ message: 'Missing required parameters.' });
     }
 
@@ -56,6 +57,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         customer_id: userId,
         customer_email: userEmail,
         customer_name: userName,
+      },
+      // The return_url tells Cashfree where to redirect the user after the payment is completed.
+      // This is crucial for a good user experience on your new domain.
+      order_meta: {
+        return_url: `${appUrl}`,
       },
     };
 

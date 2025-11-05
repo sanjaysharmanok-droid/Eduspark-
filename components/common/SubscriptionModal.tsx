@@ -21,30 +21,35 @@ const TierCard: React.FC<{
     const isCurrent = currentTier === tierKey;
 
     return (
-        <div className={`glass-card rounded-2xl p-6 flex flex-col transition-all duration-300 ${isCurrent ? 'border-indigo-500 ring-2 ring-indigo-500' : 'border-white/20'} ${isPopular ? 'relative' : ''}`}>
+        <div className={`relative flex flex-col rounded-2xl p-6 transition-all duration-300 transform hover:-translate-y-1
+            ${isCurrent 
+                ? 'bg-white dark:bg-slate-800 border-2 border-purple-500 shadow-2xl shadow-purple-500/20' 
+                : 'bg-white/60 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-700'
+            }`}>
             {isPopular && <div className="absolute top-0 -translate-y-1/2 px-3 py-1 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-xs font-bold rounded-full left-1/2 -translate-x-1/2 shadow-lg">POPULAR</div>}
-            <h3 className="text-2xl font-bold text-white text-center">{tier}</h3>
-            <p className="mt-2 text-4xl font-extrabold text-white text-center">{price}</p>
-            <p className="text-sm text-gray-400 text-center">{description}</p>
             
-            <div className="border-t border-white/10 my-6"></div>
+            <h3 className="text-2xl font-bold text-center text-slate-800 dark:text-white">{tier}</h3>
+            <p className="mt-2 text-4xl font-extrabold text-center text-slate-900 dark:text-white">{price}</p>
+            <p className="mt-1 text-sm text-center text-slate-500 dark:text-slate-400">{description}</p>
+            
+            <div className="my-6 border-t border-gray-200 dark:border-slate-700"></div>
 
             <ul className="space-y-3 text-sm flex-1">
                 {features.map(feature => (
                     <li key={feature.text} className="flex items-start space-x-3">
-                        {feature.included ? <CheckCircleIcon className="w-5 h-5 text-green-400 flex-shrink-0" /> : <XCircleIcon className="w-5 h-5 text-red-400 flex-shrink-0" />}
-                        <span className="text-gray-300">{feature.text}</span>
+                        {feature.included ? <CheckCircleIcon className="w-5 h-5 text-green-500 flex-shrink-0" /> : <XCircleIcon className="w-5 h-5 text-red-500 flex-shrink-0" />}
+                        <span className="text-slate-600 dark:text-slate-300">{feature.text}</span>
                     </li>
                 ))}
             </ul>
             <div className="mt-8">
                 {isCurrent ? (
-                    <Button className="w-full bg-white/20 hover:bg-white/20 cursor-default" disabled>Current Plan</Button>
+                    <button className="w-full font-bold py-3 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 text-white cursor-default shadow-md" disabled>Current Plan</button>
                 ) : (
                     <Button 
                         onClick={() => onSelect(tierKey as 'silver' | 'gold')} 
                         isLoading={isLoading}
-                        className={`w-full ${tierKey === 'free' ? 'hidden' : ''} ${isPopular ? '' : 'from-gray-600 to-slate-700 hover:shadow-slate-500/50'}`}>
+                        className={`w-full ${tierKey === 'free' ? 'hidden' : ''} ${isPopular ? '' : 'from-gray-500 to-slate-600 hover:shadow-slate-500/50'}`}>
                         {isLoading ? 'Processing...' : (currentTier === 'free' ? 'Upgrade Plan' : (tierKey === 'gold' ? 'Upgrade' : 'Downgrade'))}
                     </Button>
                 )}
@@ -54,7 +59,7 @@ const TierCard: React.FC<{
 };
 
 const SubscriptionModal: React.FC = () => {
-    const { isSubscriptionModalOpen, setIsSubscriptionModalOpen, subscriptionTier, firebaseUser, user } = useContext(AppContext);
+    const { isSubscriptionModalOpen, setIsSubscriptionModalOpen, subscriptionTier, firebaseUser, user, language } = useContext(AppContext);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -67,7 +72,7 @@ const SubscriptionModal: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            await initiatePayment(tier, firebaseUser.uid, user.email, user.name);
+            await initiatePayment(tier, firebaseUser.uid, user.email, user.name, language);
         } catch (err: any) {
             console.error("Payment initiation failed:", err);
             // Don't show an error if the user just closed the modal.
@@ -122,16 +127,15 @@ const SubscriptionModal: React.FC = () => {
     };
 
     return (
-        <Modal isOpen={isSubscriptionModalOpen} onClose={() => setIsSubscriptionModalOpen(false)} title="Upgrade Your Plan">
+        <Modal isOpen={isSubscriptionModalOpen} onClose={() => setIsSubscriptionModalOpen(false)} title="Choose the plan that best fits your educational journey.">
             <div className="p-2">
-                <p className="text-center text-gray-300 mb-8">Choose the plan that best fits your educational journey.</p>
                 {error && (
-                    <div className="mb-4 p-3 text-center bg-red-900/50 border border-red-500/50 text-red-200 rounded-lg">
+                    <div className="mb-4 p-3 text-center bg-red-100 dark:bg-red-900/50 border border-red-300 dark:border-red-500/50 text-red-700 dark:text-red-200 rounded-lg">
                         <p className="font-semibold">Payment Error</p>
                         <p className="text-sm">{error}</p>
                     </div>
                 )}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
                     <TierCard
                         tier="Free"
                         price={planData.free.price}

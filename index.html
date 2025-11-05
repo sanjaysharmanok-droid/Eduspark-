@@ -9,6 +9,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://js.stripe.com/v3/"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,17 +17,17 @@
 <script type="importmap">
 {
   "imports": {
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^18.2.0",
+    "react-dom": "https://aistudiocdn.com/react-dom@^18.2.0",
+    "react/": "https://aistudiocdn.com/react@^18.2.0/",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^18.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
     "firebase/": "https://aistudiocdn.com/firebase@^12.5.0/",
-    "firebase-admin": "https://aistudiocdn.com/firebase-admin@^13.5.0",
     "@vercel/node": "https://aistudiocdn.com/@vercel/node@^5.5.4",
-    "micro": "https://aistudiocdn.com/micro@^10.0.1",
-    "cashfree-pg": "https://aistudiocdn.com/cashfree-pg@^4.0.2",
     "stripe": "https://aistudiocdn.com/stripe@^19.2.1",
+    "micro": "https://aistudiocdn.com/micro@^10.0.1",
+    "firebase-admin": "https://aistudiocdn.com/firebase-admin@^13.5.0",
+    "cashfree-pg": "https://aistudiocdn.com/cashfree-pg@^5.1.0",
     "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
     "buffer": "https://aistudiocdn.com/buffer@^6.0.3"
   }
@@ -160,7 +161,12 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
+        // Construct the full, absolute URL to the service worker file
+        // to ensure it's loaded from the correct origin, even in
+        // environments with complex proxying or base URL settings.
+        const serviceWorkerUrl = `${window.location.origin}/service-worker.js`;
+        
+        navigator.serviceWorker.register(serviceWorkerUrl)
           .then(registration => {
             console.log('ServiceWorker registration successful with scope: ', registration.scope);
           })
