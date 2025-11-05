@@ -12,6 +12,7 @@ export const translations = {
   myLibrary_name: { en: 'My Library', hi: 'मेरी लाइब्रेरी', es: 'Mi Biblioteca', fr: 'Ma Bibliothèque' },
   myReports_name: { en: 'My Reports', hi: 'मेरी रिपोर्ट', es: 'Mis Informes', fr: 'Mes Rapports' },
   factFinder_name: { en: 'Fact Finder', hi: 'तथ्य खोजक', es: 'Buscador de Hechos', fr: 'Chercheur de Faits' },
+  summarizer_name: { en: 'Summarizer', hi: 'सारांशक', es: 'Resumidor', fr: 'Résumeur' },
 
   // Tool Descriptions
   homeworkHelper_desc: { en: 'Get help with tough questions and understand complex subjects.', hi: 'कठिन प्रश्नों में सहायता प्राप्त करें और जटिल विषयों को समझें।', es: 'Obtén ayuda con preguntas difíciles y comprende temas complejos.', fr: 'Obtenez de l\'aide pour les questions difficiles et comprenez des sujets complexes.' },
@@ -27,6 +28,9 @@ export const translations = {
   myLibrary_desc: { en: 'Save and organize topics into custom lesson lists.', hi: 'विषयों को सहेजें और कस्टम पाठ सूचियों में व्यवस्थित करें।', es: 'Guarda y organiza temas en listas de lecciones personalizadas.', fr: 'Enregistrez et organisez des sujets dans des listes de leçons personnalisées.' },
   myReports_desc: { en: 'View your quiz history and track your progress.', hi: 'अपने प्रश्नोत्तरी इतिहास देखें और अपनी प्रगति को ट्रैक करें।', es: 'Consulta tu historial de cuestionarios y sigue tu progreso.', fr: 'Consultez l\'historique de vos quiz et suivez vos progrès.' },
   factFinder_desc: { en: 'Get a list of interesting facts about any topic.', hi: 'किसी भी विषय के बारे में रोचक तथ्यों की सूची प्राप्त करें।', es: 'Obtén una lista de datos interesantes sobre cualquier tema.', fr: 'Obtenez une liste de faits intéressants sur n\'importe quel sujet.' },
+  summarizer_desc: { en: 'Summarize long texts into key points or paragraphs.', hi: 'लंबे पाठों को मुख्य बिंदुओं या पैराग्राफ में सारांशित करें।', es: 'Resume textos largos en puntos clave o párrafos.', fr: 'Résumez de longs textes en points clés ou en paragraphes.' },
+  summarizer_desc_teacher: { en: 'Quickly summarize articles or documents for lesson materials.', hi: 'पाठ सामग्री के लिए लेखों या दस्तावेजों को शीघ्रता से सारांशित करें।', es: 'Resume rápidamente artículos o documentos para material didáctico.', fr: 'Résumez rapidement des articles ou des documents pour le matériel de cours.' },
+
 
   // Categories
   forStudents: { en: 'For Students', hi: 'छात्रों के लिए', es: 'Para Estudiantes', fr: 'Pour les Étudiants' },

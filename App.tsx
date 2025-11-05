@@ -20,6 +20,7 @@ const Settings = React.lazy(() => import('./components/features/Settings'));
 const MyLibrary = React.lazy(() => import('./components/features/MyLibrary'));
 const MyReports = React.lazy(() => import('./components/features/MyReports'));
 const FactFinder = React.lazy(() => import('./components/features/FactFinder'));
+const Summarizer = React.lazy(() => import('./components/features/Summarizer'));
 
 const useMediaQuery = (query: string) => {
     const [matches, setMatches] = useState(false);
@@ -62,6 +63,9 @@ const App: React.FC = () => {
       case 'myLibrary': return <MyLibrary />;
       case 'myReports': return <MyReports />;
       case 'factFinder': return <FactFinder />;
+      case 'summarizer':
+      case 'summarizerTeacher':
+        return <Summarizer />;
       default: return <LessonPlanner />;
     }
   }, [activeTool]);

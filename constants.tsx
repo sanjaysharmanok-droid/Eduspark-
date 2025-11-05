@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole } from './types';
-import { BookOpenIcon, SparklesIcon, BeakerIcon, ClipboardDocumentListIcon, LightBulbIcon, PresentationChartBarIcon, AcademicCapIcon, CameraIcon, SettingsIcon, LibraryIcon, ReportIcon, InformationCircleIcon } from './components/icons';
+import { BookOpenIcon, SparklesIcon, BeakerIcon, ClipboardDocumentListIcon, LightBulbIcon, PresentationChartBarIcon, AcademicCapIcon, CameraIcon, SettingsIcon, LibraryIcon, ReportIcon, InformationCircleIcon, DocumentTextIcon } from './components/icons';
 
 export const TOOLS: Record<string, ToolConfig> = {
   // Student Tools
@@ -16,6 +16,13 @@ export const TOOLS: Record<string, ToolConfig> = {
     descriptionKey: 'topicExplorer_desc',
     categoryKey: 'forStudents',
     icon: <SparklesIcon />,
+    role: 'student',
+  },
+  summarizer: {
+    nameKey: 'summarizer_name',
+    descriptionKey: 'summarizer_desc',
+    categoryKey: 'forStudents',
+    icon: <DocumentTextIcon />,
     role: 'student',
   },
   factFinder: {
@@ -74,6 +81,13 @@ export const TOOLS: Record<string, ToolConfig> = {
     descriptionKey: 'presentationGenerator_desc',
     categoryKey: 'forTeachers',
     icon: <PresentationChartBarIcon />,
+    role: 'teacher',
+  },
+  summarizerTeacher: {
+    nameKey: 'summarizer_name',
+    descriptionKey: 'summarizer_desc_teacher',
+    categoryKey: 'forTeachers',
+    icon: <DocumentTextIcon />,
     role: 'teacher',
   },
   reportCardHelper: {

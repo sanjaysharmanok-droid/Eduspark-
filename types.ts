@@ -15,6 +15,7 @@ export interface Usage {
   presentations: number;
   lessonPlans: number;
   activities: number;
+  summaries: number;
 }
 export interface User {
   name: string;

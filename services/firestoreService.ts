@@ -40,6 +40,7 @@ export const createUserProfileDocument = async (firebaseUser: FirebaseUser, addi
         presentations: 0,
         lessonPlans: 0,
         activities: 0,
+        summaries: 0,
       },
       ...additionalData
     };

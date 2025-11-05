@@ -11,6 +11,7 @@ const DAILY_LIMITS = {
   quizQuestions: 100,
   topicSearches: 5,
   homeworkHelps: 5,
+  summaries: 5,
   // Teacher
   presentations: 3,
   lessonPlans: 5,
@@ -67,7 +68,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
   const [credits, setCredits] = useState<number>(0);
-  const [usage, setUsage] = useState<Usage>({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0 });
+  const [usage, setUsage] = useState<Usage>({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 });
 
   const defaultTool = useMemo(() => (userRole === 'teacher' ? 'lessonPlanner' : 'homeworkHelper') as ToolKey, [userRole]);
   const [activeTool, setActiveTool] = useState<ToolKey>(defaultTool);
@@ -163,7 +164,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Set default free tier values for guest
     setSubscriptionTier('free');
     setCredits(0);
-    setUsage({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0 });
+    setUsage({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 });
     setLessonLists([]);
     setQuizAttempts([]);
     setAuthLoading(false);

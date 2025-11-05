@@ -1,14 +1,11 @@
 import { GoogleGenAI, Type, Modality, GenerateContentResponse } from "@google/genai";
 import { LessonPlan, Quiz, Presentation, Language, ResponseStyle, PresentationTheme, Fact } from '../types';
 
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable is not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 // In-memory cache for the user's session
 const cache = new Map<string, any>();
+
+// Use a single, top-level instance of the GoogleGenAI class for efficiency and stability.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const languageMap: Record<Language, string> = {
     en: 'English',
@@ -54,12 +51,15 @@ const withRetry = async <T>(apiCall: () => Promise<T>, maxRetries = 3, initialDe
     throw new Error('API call failed after multiple retries.');
 };
 
+// Replaced third-party API call with Gemini for security and consistency.
 export const getDetailedFactsResponse = async (topic: string, count: number, language: Language): Promise<{ topic: string, facts: Fact[] }> => {
     const prompt = `Generate ${count} interesting and detailed facts about "${topic}". 
     Use a casual, friendly, and conversational tone, like a knowledgeable friend explaining things. 
     Incorporate an Indian context or relatable examples where possible. Make it easy for a student in India to understand.
-    For each fact, provide a short "fact" title and a more detailed "detail" paragraph.
-    All text content in the JSON response must be in ${languageMap[language]}.`;
+    For each fact, provide a short "fact" title and a more detailed "detail" paragraph. 
+    The response must have all text content in ${languageMap[language]}.
+    The final JSON object should have a key "topic" whose value is the original topic "${topic}", and a key "facts" which is an array of objects.
+    Each object in the "facts" array must have two keys: "fact" (a string) and "detail" (a string).`;
 
     const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -87,21 +87,13 @@ export const getDetailedFactsResponse = async (topic: string, count: number, lan
         }
     }));
     
-    try {
-        const result = JSON.parse(response.text.trim()) as { topic: string, facts: Fact[] };
-        
-        if (!result.topic || !Array.isArray(result.facts)) {
-            throw new Error("Invalid JSON structure received from AI.");
-        }
-        
-        return result;
-    } catch (error) {
-        console.error("Error parsing facts from Gemini AI:", error);
-        if (error instanceof SyntaxError) {
-             throw new Error("Failed to parse the response from the AI. The AI did not return valid JSON.");
-        }
-        throw error; // Re-throw the original or a new error
+    const result = JSON.parse(response.text.trim()) as { topic: string, facts: Fact[] };
+
+    if (!result.topic || !Array.isArray(result.facts)) {
+        throw new Error("Invalid JSON structure received from AI.");
     }
+    
+    return result;
 };
 
 
@@ -367,6 +359,32 @@ export const generateQuiz = async (topic: string, numQuestions: number, difficul
     cache.set(cacheKey, result);
     return result;
 }
+
+export const generateSummary = async (text: string, style: 'bullets' | 'paragraph', language: Language): Promise<string> => {
+    const cacheKey = `summary-${style}-${language}-${text.substring(0, 100)}`;
+    if (cache.has(cacheKey)) {
+        console.log(`[Cache Hit] Returning cached data for: ${cacheKey}`);
+        return cache.get(cacheKey);
+    }
+    console.log(`[Cache Miss] Fetching data for: ${cacheKey}`);
+
+    const prompt = `Summarize the following text in a ${style === 'bullets' ? 'concise bullet points' : 'single, well-written paragraph'} format. The summary must be in ${languageMap[language]}.
+    
+    Text to summarize: "${text}"
+
+    ${markdownFixPrompt(language)}
+    `;
+
+    const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+    }));
+
+    const result = response.text;
+    cache.set(cacheKey, result);
+    return result;
+};
+
 
 export const getLiveResponse = async (prompt: string, imageBase64: string, language: Language): Promise<string> => {
     const fullPrompt = `Analyze the attached image and answer this question: "${prompt}". Respond in ${languageMap[language]}. ${markdownFixPrompt(language)}`;
