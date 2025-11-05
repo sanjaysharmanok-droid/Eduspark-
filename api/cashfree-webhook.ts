@@ -1,12 +1,11 @@
 // In /api/cashfree-webhook.ts
 
-// Fix: Add reference to node types to resolve "Cannot find name 'Buffer'" error.
-/// <reference types="node" />
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as admin from 'firebase-admin';
 import crypto from 'crypto';
 import { buffer } from 'micro';
+// FIX: Import Buffer to resolve type errors in environments where Node.js globals are not automatically recognized.
+import { Buffer } from 'buffer';
 
 /**
  * =================================================================================================
@@ -27,17 +26,25 @@ export const config = {
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON!);
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+  try {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON!);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  } catch (error) {
+    console.error("Firebase Admin SDK initialization failed:", error);
+  }
 }
 const db = admin.firestore();
 
 // Helper function to verify the webhook signature. This is a critical security step.
 const verifyCashfreeSignature = (signature: string, timestamp: string, rawBody: Buffer): boolean => {
     try {
-        const secret = process.env.CASHFREE_WEBHOOK_SECRET!;
+        const secret = process.env.CASHFREE_WEBHOOK_SECRET;
+        if (!secret) {
+            console.error("CASHFREE_WEBHOOK_SECRET is not set in environment variables.");
+            return false;
+        }
         const dataToSign = `${timestamp}${rawBody.toString()}`;
         const expectedSignature = crypto
             .createHmac('sha256', secret)
@@ -57,20 +64,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).end('Method Not Allowed');
   }
 
-  const signature = req.headers['x-webhook-signature'] as string;
-  const timestamp = req.headers['x-webhook-timestamp'] as string;
   const rawBody = await buffer(req);
   
-  // STEP 1: Verify the signature to ensure the request is from Cashfree
+  // First, check if this is the test event from the Cashfree dashboard.
+  try {
+    const event = JSON.parse(rawBody.toString());
+    if (event.type === "TEST_WEBHOOK") {
+      console.log("✅ Received Cashfree test webhook. Responding with success.");
+      return res.status(200).json({ status: 'Test webhook received successfully!' });
+    }
+  } catch (e) {
+    // Not a JSON body or not a test event, continue to normal processing.
+  }
+
+  const signature = req.headers['x-webhook-signature'] as string;
+  const timestamp = req.headers['x-webhook-timestamp'] as string;
+  
+  // STEP 1: Verify the signature for all real transaction events
   if (!verifyCashfreeSignature(signature, timestamp, rawBody)) {
-    console.error('⚠️ Webhook signature verification failed.');
+    console.error('⚠️ Webhook signature verification failed. Make sure CASHFREE_WEBHOOK_SECRET is set correctly.');
     return res.status(401).send('Unauthorized');
   }
 
   try {
     const event = JSON.parse(rawBody.toString());
     
-    // STEP 2: Check if the event is a successful payment event.
+    // STEP 2: Check for a successful payment event.
     if (event.type === "PAYMENT_SUCCESS_WEBHOOK" && event.data.order.order_status === "PAID") {
       const order = event.data.order;
       const customer = event.data.customer;
