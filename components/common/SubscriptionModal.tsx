@@ -54,12 +54,12 @@ const TierCard: React.FC<{
 };
 
 const SubscriptionModal: React.FC = () => {
-    const { isSubscriptionModalOpen, setIsSubscriptionModalOpen, subscriptionTier, firebaseUser } = useContext(AppContext);
+    const { isSubscriptionModalOpen, setIsSubscriptionModalOpen, subscriptionTier, firebaseUser, user } = useContext(AppContext);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const handlePlanSelect = async (tier: 'silver' | 'gold') => {
-        if (!firebaseUser) {
+        if (!firebaseUser || !user) {
             setError("You must be logged in to upgrade your plan. Guest users cannot subscribe.");
             return;
         }
@@ -67,12 +67,13 @@ const SubscriptionModal: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            await initiatePayment(tier, firebaseUser.uid);
-            // If initiatePayment is successful, it will redirect the user to Stripe.
-            // There's no need to handle a success case here, as the page will navigate away.
+            await initiatePayment(tier, firebaseUser.uid, user.email, user.name);
         } catch (err: any) {
             console.error("Payment initiation failed:", err);
-            setError(err.message || "Could not start the payment process. Please try again.");
+            // Don't show an error if the user just closed the modal.
+            if (err.message !== "Payment window closed." && err.message !== "Transaction Cancelled by User") {
+                 setError(err.message || "Could not start the payment process. Please try again.");
+            }
         } finally {
             setIsLoading(false);
         }

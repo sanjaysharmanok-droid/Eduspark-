@@ -16,7 +16,9 @@
     "firebase-admin": "^13.5.0",
     "@vercel/node": "^5.5.4",
     "micro": "^10.0.1",
-    "stripe": "^19.2.1"
+    "cashfree-pg": "^4.0.2",
+    "stripe": "^19.2.1",
+    "crypto": "^1.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
