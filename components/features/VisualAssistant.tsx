@@ -314,23 +314,44 @@ const VisualAssistant: React.FC = () => {
     useEffect(() => {
         const changeStream = async () => {
             if (isSessionActive && selectedDeviceId && streamRef.current) {
-                const currentAudioTracks = streamRef.current.getAudioTracks();
-                streamRef.current.getVideoTracks().forEach(track => track.stop());
+                const oldTrack = streamRef.current.getVideoTracks()[0];
+                
+                // Do nothing if we are already on the selected device.
+                if (oldTrack && oldTrack.getSettings().deviceId === selectedDeviceId) {
+                    return;
+                }
+
+                // Stop and remove the old track from the stream.
+                if (oldTrack) {
+                    oldTrack.stop();
+                    streamRef.current.removeTrack(oldTrack);
+                }
+
                 try {
+                    // Get a new stream with the selected video device.
                     const newStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: selectedDeviceId } } });
                     const newVideoTrack = newStream.getVideoTracks()[0];
+                    
+                    // Add the new video track to our main stream.
                     streamRef.current.addTrack(newVideoTrack);
-                    streamRef.current.removeTrack(streamRef.current.getVideoTracks()[0]);
 
+                    // Re-assigning the srcObject ensures the video element updates.
                     if (videoRef.current) {
-                        const mediaStreamWithAudio = new MediaStream([...currentAudioTracks, newVideoTrack]);
-                        videoRef.current.srcObject = mediaStreamWithAudio;
+                        videoRef.current.srcObject = streamRef.current;
                     }
-                } catch(e) { console.error("Error switching camera:", e); setError("Could not switch camera. Please check permissions."); }
+                } catch(e) {
+                    console.error("Error switching camera:", e);
+                    setError("Could not switch camera. Please check permissions.");
+                }
             }
         };
-        if(selectedDeviceId && selectedDeviceId !== streamRef.current?.getVideoTracks()[0]?.getSettings().deviceId) changeStream();
+        
+        // Trigger the change only when a device is selected.
+        if(selectedDeviceId) {
+            changeStream();
+        }
     }, [selectedDeviceId, isSessionActive]);
+
 
     useEffect(() => { return () => { stopSession(); }; }, [stopSession]);
     
@@ -364,7 +385,7 @@ const VisualAssistant: React.FC = () => {
             )}
 
             {/* Video Container */}
-            <div className="relative md:flex-1 h-1/2 md:h-full bg-black flex items-center justify-center group">
+            <div className="relative flex-1 bg-black flex items-center justify-center group">
                 {!isSessionActive ? (
                     <div className="text-center p-4 flex flex-col items-center justify-center h-full">
                         <Logo className="w-16 h-16 text-indigo-400 mb-4"/>
@@ -399,7 +420,7 @@ const VisualAssistant: React.FC = () => {
             </div>
 
             {/* Chat/Transcription Container */}
-            <div className={`flex-1 md:w-1/3 md:max-w-md bg-slate-800 flex flex-col h-1/2 md:h-full transition-all duration-300 ${!isSessionActive && 'hidden md:flex'}`}>
+            <div className={`md:w-1/3 md:max-w-md bg-slate-800 flex flex-col h-2/5 md:h-full transition-all duration-300 ${!isSessionActive && 'hidden md:flex'}`}>
                 <div className="p-4 border-b border-slate-700 flex justify-between items-center">
                     <h2 className="text-lg font-bold">Conversation</h2>
                     {isSessionActive && <StatusIndicator />}
