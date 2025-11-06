@@ -120,12 +120,12 @@ const App: React.FC = () => {
     <>
     <SubscriptionModal />
     <div className={`h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200 ${!isVisualAssistantActive && 'flex'}`}>
-      <Sidebar 
+      {!isVisualAssistantActive && <Sidebar 
         activeTool={activeTool} 
         setActiveTool={setActiveTool} 
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
-      />
+      />}
       <main className={`flex-1 flex flex-col overflow-y-auto scrollbar-thin transition-all duration-300 ${isVisualAssistantActive ? '' : (isSidebarCollapsed ? 'lg:pl-24' : 'lg:pl-72')} ${!isVisualAssistantActive && 'pb-24 lg:pb-0'}`}>
         <div className={`flex-grow w-full ${mainContentContainerClasses}`}>
            {!(isVisualAssistantActive) && activeToolDetails && (
