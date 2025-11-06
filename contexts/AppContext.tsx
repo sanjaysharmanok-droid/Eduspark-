@@ -114,62 +114,72 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Fetch data when user logs in or on initial load
   useEffect(() => {
     const fetchData = async () => {
-      // Always fetch app config, even for non-logged-in users
-      const config = await firestoreService.getAppConfig();
-      setAppConfig(config);
-      updateModelConfig(config.aiModels);
-
-      if (firebaseUser) {
         setDataLoading(true);
-        let userData = await firestoreService.getUserData(firebaseUser.uid);
-        if (!userData) {
-          userData = await firestoreService.createUserProfileDocument(firebaseUser);
-        }
+        try {
+            const config = await firestoreService.getAppConfig();
+            setAppConfig(config);
+            if (config?.aiModels) {
+                updateModelConfig(config.aiModels);
+            }
 
-        if (userData) {
-          // Set state from Firestore data
-          const isAdminUser = userData.isAdmin === true;
-          setIsAdmin(isAdminUser);
-          if (isAdminUser) {
-            setAdminViewMode('admin');
-            setActiveTool('adminPanel');
-          } else {
-            setAdminViewMode(null);
-          }
-          
-          setUserRoleState(userData.settings.role || null);
-          setLanguageState(userData.settings.language || 'en');
-  
-          setSubscriptionTier(userData.subscription.tier || 'free');
-          setCredits(userData.subscription.credits || 0);
-          
-          // Handle daily/monthly resets
-          const todayStr = getTodayDateString();
-          if (userData.usage.date !== todayStr) {
-            const newUsage = { ...usage, date: todayStr };
-            setUsage(newUsage);
-            firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
-          } else {
-            setUsage(userData.usage);
-          }
-          
-          // Fetch subcollections
-          const [lists, attempts] = await Promise.all([
-             firestoreService.getLessonLists(firebaseUser.uid),
-             firestoreService.getQuizAttempts(firebaseUser.uid)
-          ]);
-          setLessonLists(lists);
-          setQuizAttempts(attempts);
+            if (firebaseUser) {
+                let userData = await firestoreService.getUserData(firebaseUser.uid);
+                if (!userData) {
+                    userData = await firestoreService.createUserProfileDocument(firebaseUser);
+                }
+
+                if (userData) {
+                    const isAdminUser = userData.isAdmin === true;
+                    setIsAdmin(isAdminUser);
+                    if (isAdminUser) {
+                        setAdminViewMode('admin');
+                        setActiveTool('adminPanel');
+                    } else {
+                        setAdminViewMode(null);
+                    }
+                    
+                    // SAFELY access nested properties with optional chaining and fallbacks
+                    setUserRoleState(userData.settings?.role || null);
+                    setLanguageState(userData.settings?.language || 'en');
+            
+                    setSubscriptionTier(userData.subscription?.tier || 'free');
+                    setCredits(userData.subscription?.credits || 0);
+                    
+                    const todayStr = getTodayDateString();
+                    // Provide a full default for usage if it's missing
+                    const userUsage = userData.usage || { date: '1970-01-01', quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 };
+                    
+                    if (userUsage.date !== todayStr) {
+                        const newUsage = { ...usage, date: todayStr }; // `usage` is the default state {date, 0, 0, ...}
+                        setUsage(newUsage);
+                        firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
+                    } else {
+                        setUsage(userUsage);
+                    }
+                    
+                    const [lists, attempts] = await Promise.all([
+                       firestoreService.getLessonLists(firebaseUser.uid),
+                       firestoreService.getQuizAttempts(firebaseUser.uid)
+                    ]);
+                    setLessonLists(lists);
+                    setQuizAttempts(attempts);
+                }
+            } else {
+                // Reset state on logout
+                setUserRoleState(null);
+                setLessonLists([]);
+                setQuizAttempts([]);
+                setAdminViewMode(null);
+            }
+        } catch (error) {
+            console.error("Error fetching user data:", error);
+            // You could set an error state here to show in the UI
+        } finally {
+            setDataLoading(false); // Ensure loading is always false after fetching
         }
-        setDataLoading(false);
-      } else {
-         // Reset state on logout
-        setUserRoleState(null);
-        setLessonLists([]);
-        setQuizAttempts([]);
-        setAdminViewMode(null);
-      }
     };
+    
+    // onAuthStateChanged has already set authLoading to false, so we can directly fetch.
     fetchData();
   }, [firebaseUser]);
   
