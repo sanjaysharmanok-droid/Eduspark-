@@ -91,8 +91,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [adminViewMode, setAdminViewMode] = useState<'admin' | 'user' | null>(null);
 
-  const defaultTool = useMemo(() => (userRole === 'teacher' ? 'lessonPlanner' : 'homeworkHelper') as ToolKey, [userRole]);
-  const [activeTool, setActiveTool] = useState<ToolKey>(defaultTool);
+  const [activeTool, setActiveTool] = useState<ToolKey>('homeworkHelper');
 
   // Listen for auth changes
   useEffect(() => {
@@ -131,26 +130,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 if (userData) {
                     const isAdminUser = userData.isAdmin === true;
                     setIsAdmin(isAdminUser);
+
+                    const role = userData.settings?.role || null;
+                    setUserRoleState(role);
+
                     if (isAdminUser) {
                         setAdminViewMode('admin');
                         setActiveTool('adminPanel');
                     } else {
                         setAdminViewMode(null);
+                        const defaultToolForRole = role === 'teacher' ? 'lessonPlanner' : 'homeworkHelper';
+                        setActiveTool(defaultToolForRole);
                     }
                     
-                    // SAFELY access nested properties with optional chaining and fallbacks
-                    setUserRoleState(userData.settings?.role || null);
                     setLanguageState(userData.settings?.language || 'en');
             
                     setSubscriptionTier(userData.subscription?.tier || 'free');
                     setCredits(userData.subscription?.credits || 0);
                     
                     const todayStr = getTodayDateString();
-                    // Provide a full default for usage if it's missing
                     const userUsage = userData.usage || { date: '1970-01-01', quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 };
                     
                     if (userUsage.date !== todayStr) {
-                        const newUsage = { ...usage, date: todayStr }; // `usage` is the default state {date, 0, 0, ...}
+                        const newUsage = { ...usage, date: todayStr };
                         setUsage(newUsage);
                         firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
                     } else {
@@ -173,13 +175,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
         } catch (error) {
             console.error("Error fetching user data:", error);
-            // You could set an error state here to show in the UI
         } finally {
-            setDataLoading(false); // Ensure loading is always false after fetching
+            setDataLoading(false);
         }
     };
     
-    // onAuthStateChanged has already set authLoading to false, so we can directly fetch.
     fetchData();
   }, [firebaseUser]);
   
@@ -194,22 +194,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       root.classList.add(newTheme);
     };
 
-    // Set initial theme
     handleChange({ matches: mediaQuery.matches } as MediaQueryListEvent);
 
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
-  
-  // Update default tool when role changes
-  useEffect(() => { if (userRole && !isAdmin) setActiveTool(defaultTool); }, [userRole, defaultTool, isAdmin]);
 
   const signOut = useCallback(async () => {
     if (firebaseUser) {
       await firebaseSignOut();
-      // onAuthStateChanged listener will handle clearing user state.
     } else {
-      // It's a guest user, just clear the state manually
       setUser(null);
       setUserRoleState(null);
     }
@@ -220,7 +214,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUser({ name: 'Guest Student', email: 'guest@eduspark.ai', picture: '' });
     setFirebaseUser(null);
     setUserRoleState('student');
-    // Set default free tier values for guest
     setSubscriptionTier('free');
     setCredits(50);
     setUsage({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 });
