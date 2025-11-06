@@ -60,6 +60,8 @@ interface AppContextType {
   // Admin properties
   isAdmin: boolean;
   appConfig: AppConfig | null;
+  adminViewMode: 'admin' | 'user' | null;
+  setAdminViewMode: (mode: 'admin' | 'user') => void;
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -87,6 +89,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Admin State
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
+  const [adminViewMode, setAdminViewMode] = useState<'admin' | 'user' | null>(null);
 
   const defaultTool = useMemo(() => (userRole === 'teacher' ? 'lessonPlanner' : 'homeworkHelper') as ToolKey, [userRole]);
   const [activeTool, setActiveTool] = useState<ToolKey>(defaultTool);
@@ -125,12 +128,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (userData) {
           // Set state from Firestore data
+          const isAdminUser = userData.isAdmin === true;
+          setIsAdmin(isAdminUser);
+          if (isAdminUser) {
+            setAdminViewMode('admin');
+            setActiveTool('adminPanel');
+          } else {
+            setAdminViewMode(null);
+          }
+          
           setUserRoleState(userData.settings.role || null);
           setLanguageState(userData.settings.language || 'en');
+  
           setSubscriptionTier(userData.subscription.tier || 'free');
           setCredits(userData.subscription.credits || 0);
-          setIsAdmin(userData.isAdmin === true);
-
+          
           // Handle daily/monthly resets
           const todayStr = getTodayDateString();
           if (userData.usage.date !== todayStr) {
@@ -155,6 +167,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setUserRoleState(null);
         setLessonLists([]);
         setQuizAttempts([]);
+        setAdminViewMode(null);
       }
     };
     fetchData();
@@ -179,7 +192,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
   
   // Update default tool when role changes
-  useEffect(() => { if (userRole) setActiveTool(defaultTool); }, [userRole, defaultTool]);
+  useEffect(() => { if (userRole && !isAdmin) setActiveTool(defaultTool); }, [userRole, defaultTool, isAdmin]);
 
   const signOut = useCallback(async () => {
     if (firebaseUser) {
@@ -190,6 +203,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUser(null);
       setUserRoleState(null);
     }
+    setAdminViewMode(null);
   }, [firebaseUser]);
   
   const startGuestSession = useCallback(() => {
@@ -274,10 +288,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     activeQuizTopic, setActiveQuizTopic, activeTool, setActiveTool,
     subscriptionTier, credits, usage, isSubscriptionModalOpen, setIsSubscriptionModalOpen,
     upgradeSubscription, canUseFeature, useFeature, startGuestSession,
-    isAdmin, appConfig
+    isAdmin, appConfig, adminViewMode, setAdminViewMode
   }), [
     user, firebaseUser, signOut, userRole, theme, language, lessonLists, quizAttempts, activeQuizTopic, activeTool,
-    subscriptionTier, credits, usage, isSubscriptionModalOpen, startGuestSession, isAdmin, appConfig,
+    subscriptionTier, credits, usage, isSubscriptionModalOpen, startGuestSession, isAdmin, appConfig, adminViewMode,
     setUserRole, setLanguage, addLessonList, addTopicToLessonList, addQuizAttempt,
     setActiveTool, upgradeSubscription, canUseFeature, useFeature
   ]);

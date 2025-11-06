@@ -133,41 +133,17 @@ export const TOOLS: Record<string, ToolConfig> = {
     icon: <ShieldCheckIcon />,
     role: 'teacher', // Role is nominal; only visible to admins
   },
-
-  // Static Pages (for routing)
-  about: {
-    nameKey: 'about_name',
-    descriptionKey: 'about_desc',
-    icon: <InformationCircleIcon />,
-    role: 'student',
-  },
-  privacyPolicy: {
-    nameKey: 'privacyPolicy_name',
-    descriptionKey: 'privacyPolicy_desc',
-    icon: <DocumentTextIcon />,
-    role: 'student',
-  },
-  termsAndConditions: {
-    nameKey: 'termsAndConditions_name',
-    descriptionKey: 'termsAndConditions_desc',
-    icon: <ClipboardDocumentListIcon />,
-    role: 'student',
-  },
-  contactUs: {
-    nameKey: 'contactUs_name',
-    descriptionKey: 'contactUs_desc',
-    icon: <MailIcon />,
-    role: 'student',
-  },
-  refundPolicy: {
-    nameKey: 'refundPolicy_name',
-    descriptionKey: 'refundPolicy_desc',
-    icon: <RefreshIcon />,
-    role: 'student',
-  },
 };
 
-export type ToolKey = keyof typeof TOOLS;
+export type ToolKey = 
+  | keyof typeof TOOLS
+  // Add static page keys here so they can be routed to, even if not in the main TOOLS object
+  | 'about'
+  | 'privacyPolicy'
+  | 'termsAndConditions'
+  | 'contactUs'
+  | 'refundPolicy';
+  
 export interface ToolConfig {
     nameKey: any;
     descriptionKey: any;

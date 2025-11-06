@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { AppContext } from '../contexts/AppContext';
 import { useTranslations } from '../hooks/useTranslations';
 import { TOOLS, ToolKey } from '../constants';
-import { ChevronDoubleLeftIcon, SparklesIcon } from './icons';
+import { ChevronDoubleLeftIcon, SparklesIcon, ShieldCheckIcon } from './icons';
 import Logo from './common/Logo';
 
 interface SidebarProps {
@@ -13,18 +13,16 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTool, setActiveTool, isSidebarCollapsed, setIsSidebarCollapsed }) => {
-  const { userRole, setIsSubscriptionModalOpen, isAdmin } = useContext(AppContext);
+  const { userRole, setIsSubscriptionModalOpen, isAdmin, setAdminViewMode } = useContext(AppContext);
   const { t } = useTranslations();
 
   const mainTools = Object.entries(TOOLS)
-    .filter(([key]) => !['settings', 'planInformation', 'adminPanel'].includes(key) && !TOOLS[key as ToolKey].nameKey.includes('desc')) // Filter out static/admin pages
+    .filter(([key]) => !['settings', 'planInformation', 'adminPanel'].includes(key))
     .filter(([, config]) => config.role === userRole)
     .map(([key, config]) => ({ key: key as ToolKey, ...config }));
 
   const settingsTool = TOOLS['settings'] ? { key: 'settings' as ToolKey, ...TOOLS['settings'] } : null;
   const planTool = TOOLS['planInformation'] ? { key: 'planInformation' as ToolKey, ...TOOLS['planInformation'] } : null;
-  const adminTool = isAdmin && TOOLS['adminPanel'] ? { key: 'adminPanel' as ToolKey, ...TOOLS['adminPanel'] } : null;
-
 
   const getToolItemClasses = (toolKey: ToolKey) => {
     const isActive = activeTool === toolKey;
@@ -79,6 +77,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, setActiveTool, isSidebarC
       </nav>
 
       <div className="mt-auto p-2 pt-2 space-y-1">
+         {isAdmin && (
+            <div className="px-2">
+                <button
+                    onClick={() => setAdminViewMode('admin')}
+                    title={isSidebarCollapsed ? "Admin Panel" : ""}
+                    className={`w-full flex items-center p-3 mb-1 rounded-lg text-left transition-all duration-300 bg-gradient-to-r from-slate-700 to-gray-800 text-white hover:opacity-90 hover:shadow-lg hover:shadow-gray-500/50 ${isSidebarCollapsed ? 'justify-center' : 'space-x-3'}`}
+                >
+                    <ShieldCheckIcon className="w-5 h-5"/>
+                    {!isSidebarCollapsed && <span className="text-sm font-bold">Return to Admin</span>}
+                </button>
+            </div>
+         )}
          <div className="px-2">
             <button
                 onClick={() => setIsSubscriptionModalOpen(true)}
@@ -89,18 +99,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, setActiveTool, isSidebarC
                 {!isSidebarCollapsed && <span className="text-sm font-bold">Upgrade Plan</span>}
             </button>
          </div>
-         {adminTool && (
-           <div>
-              <button
-                onClick={() => setActiveTool(adminTool.key)}
-                title={isSidebarCollapsed ? t(adminTool.nameKey) : ''}
-                className={getToolItemClasses(adminTool.key)}
-              >
-                <span className={getIconClasses(adminTool.key)}>{adminTool.icon}</span>
-                {!isSidebarCollapsed && <span className={getTextClasses(adminTool.key)}>{t(adminTool.nameKey)}</span>}
-              </button>
-           </div>
-        )}
          {planTool && (
            <div>
               <button

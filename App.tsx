@@ -7,6 +7,8 @@ import { useTranslations } from './hooks/useTranslations';
 import SubscriptionModal from './components/common/SubscriptionModal';
 import BottomNavBar from './components/common/BottomNavBar';
 import Footer from './components/common/Footer';
+import Logo from './components/common/Logo';
+import Button from './components/common/Button';
 
 // Dynamically import feature components
 const LessonPlanner = React.lazy(() => import('./components/features/LessonPlanner'));
@@ -44,15 +46,41 @@ const useMediaQuery = (query: string) => {
     return matches;
 };
 
+// Header for the dedicated Admin view
+const AdminHeader: React.FC = () => {
+    const { user, signOut, setAdminViewMode } = useContext(AppContext);
+    return (
+        <header className="w-full p-4 glass-card flex justify-between items-center lg:m-4 lg:mb-6 lg:rounded-2xl shadow-lg">
+            <div className="flex items-center space-x-3">
+                <Logo className="h-10 w-10 text-indigo-500 dark:text-indigo-400" />
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+                 <Button onClick={() => setAdminViewMode('user')} className="text-sm px-4 py-2">
+                    Switch to User View
+                </Button>
+                {user && (
+                    <div className="flex items-center space-x-2">
+                        <img src={user.picture} alt={user.name} className="h-10 w-10 rounded-full"/>
+                        <button onClick={signOut} className="text-sm font-medium text-gray-600 hover:text-indigo-500 dark:text-gray-300 dark:hover:text-indigo-400 hidden sm:block">Sign Out</button>
+                    </div>
+                )}
+            </div>
+        </header>
+    );
+};
 
 const App: React.FC = () => {
-  const { user, userRole, activeTool, setActiveTool } = useContext(AppContext);
+  const { user, userRole, activeTool, setActiveTool, isAdmin, adminViewMode } = useContext(AppContext);
   const { t } = useTranslations();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const isMobile = useMediaQuery('(max-width: 1023px)');
+
+  const infoPageKeys: ToolKey[] = ['about', 'privacyPolicy', 'termsAndConditions', 'contactUs', 'refundPolicy'];
+  const isInfoPage = infoPageKeys.includes(activeTool);
+  
   const isVisualAssistantActive = activeTool === 'visualAssistant' || activeTool === 'visualAssistantTeacher';
-  const isInfoPage = ['about', 'privacyPolicy', 'termsAndConditions', 'contactUs', 'refundPolicy'].includes(activeTool);
 
   const activeComponent = useMemo(() => {
     switch (activeTool) {
@@ -86,7 +114,24 @@ const App: React.FC = () => {
     }
   }, [activeTool]);
   
-  const activeToolDetails = TOOLS[activeTool] as ToolConfig;
+  const activeToolDetails = TOOLS[activeTool as keyof typeof TOOLS] as ToolConfig;
+
+  // Render dedicated Admin View
+  if (isAdmin && adminViewMode === 'admin') {
+      return (
+        <>
+            <SubscriptionModal />
+            <div className="h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200 flex flex-col">
+                <AdminHeader />
+                <main className="flex-1 overflow-y-auto scrollbar-thin px-4 sm:px-6 lg:px-8 pb-8">
+                     <React.Suspense fallback={<div className="text-center p-8 text-gray-600 dark:text-white/80">Loading Admin Panel...</div>}>
+                        <AdminPanel />
+                    </React.Suspense>
+                </main>
+            </div>
+        </>
+      );
+  }
 
   // If user is not logged in AND not trying to view an info page, show home screen.
   if ((!user || !userRole) && !isInfoPage) {
