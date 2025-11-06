@@ -25,7 +25,7 @@ interface AppConfig {
         gold: string;
     };
     aiModels: {
-        [key: string]: string;
+        [key:string]: string;
     };
 }
 
@@ -62,6 +62,8 @@ interface AppContextType {
   appConfig: AppConfig | null;
   adminViewMode: 'admin' | 'user' | null;
   setAdminViewMode: (mode: 'admin' | 'user') => void;
+  isAdminViewSelected: boolean;
+  selectAdminView: (view: 'student' | 'teacher' | 'admin') => void;
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -90,6 +92,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [adminViewMode, setAdminViewMode] = useState<'admin' | 'user' | null>(null);
+  const [isAdminViewSelected, setIsAdminViewSelected] = useState<boolean>(false);
 
   const [activeTool, setActiveTool] = useState<ToolKey>('homeworkHelper');
 
@@ -130,23 +133,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 if (userData) {
                     const isAdminUser = userData.isAdmin === true;
                     setIsAdmin(isAdminUser);
-
-                    const role = userData.settings?.role || null;
-                    setUserRoleState(role);
-
-                    if (isAdminUser) {
-                        setAdminViewMode('admin');
-                        setActiveTool('adminPanel');
-                    } else {
-                        setAdminViewMode(null);
-                        const defaultToolForRole = role === 'teacher' ? 'lessonPlanner' : 'homeworkHelper';
-                        setActiveTool(defaultToolForRole);
-                    }
                     
                     setLanguageState(userData.settings?.language || 'en');
-            
                     setSubscriptionTier(userData.subscription?.tier || 'free');
                     setCredits(userData.subscription?.credits || 0);
+
+                    if (isAdminUser) {
+                        setIsAdminViewSelected(false); // Force admin to choose their view on login
+                    } else {
+                        const role = userData.settings?.role || null;
+                        setUserRoleState(role);
+                        setAdminViewMode(null);
+                        setIsAdminViewSelected(true); // Non-admin view is selected by default
+                        if (role) {
+                             setActiveTool(role === 'teacher' ? 'lessonPlanner' : 'homeworkHelper');
+                        }
+                    }
                     
                     const todayStr = getTodayDateString();
                     const userUsage = userData.usage || { date: '1970-01-01', quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 };
@@ -172,6 +174,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 setLessonLists([]);
                 setQuizAttempts([]);
                 setAdminViewMode(null);
+                setIsAdminViewSelected(false);
             }
         } catch (error) {
             console.error("Error fetching user data:", error);
@@ -208,6 +211,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUserRoleState(null);
     }
     setAdminViewMode(null);
+    setIsAdminViewSelected(false); // Reset on sign out
   }, [firebaseUser]);
   
   const startGuestSession = useCallback(() => {
@@ -219,9 +223,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUsage({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 });
     setLessonLists([]);
     setQuizAttempts([]);
+    setIsAdminViewSelected(true);
     setAuthLoading(false);
     setDataLoading(false);
   }, []);
+
+  const selectAdminView = useCallback((view: 'student' | 'teacher' | 'admin') => {
+    if (view === 'admin') {
+        setUserRoleState('teacher'); // Default role context for admin's user view
+        setAdminViewMode('admin');
+        setActiveTool('adminPanel');
+    } else {
+        setUserRoleState(view);
+        setAdminViewMode('user');
+        setActiveTool(view === 'teacher' ? 'lessonPlanner' : 'homeworkHelper');
+    }
+    setIsAdminViewSelected(true);
+  }, [setActiveTool]);
 
   // --- State Modification Callbacks ---
 
@@ -291,12 +309,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     activeQuizTopic, setActiveQuizTopic, activeTool, setActiveTool,
     subscriptionTier, credits, usage, isSubscriptionModalOpen, setIsSubscriptionModalOpen,
     upgradeSubscription, canUseFeature, useFeature, startGuestSession,
-    isAdmin, appConfig, adminViewMode, setAdminViewMode
+    isAdmin, appConfig, adminViewMode, setAdminViewMode, isAdminViewSelected, selectAdminView
   }), [
     user, firebaseUser, signOut, userRole, theme, language, lessonLists, quizAttempts, activeQuizTopic, activeTool,
-    subscriptionTier, credits, usage, isSubscriptionModalOpen, startGuestSession, isAdmin, appConfig, adminViewMode,
+    subscriptionTier, credits, usage, isSubscriptionModalOpen, startGuestSession, isAdmin, appConfig, adminViewMode, isAdminViewSelected,
     setUserRole, setLanguage, addLessonList, addTopicToLessonList, addQuizAttempt,
-    setActiveTool, upgradeSubscription, canUseFeature, useFeature
+    setActiveTool, upgradeSubscription, canUseFeature, useFeature, selectAdminView
   ]);
 
   if (authLoading || dataLoading) {

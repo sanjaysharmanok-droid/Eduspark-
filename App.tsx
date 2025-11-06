@@ -9,6 +9,7 @@ import BottomNavBar from './components/common/BottomNavBar';
 import Footer from './components/common/Footer';
 import Logo from './components/common/Logo';
 import Button from './components/common/Button';
+import AdminRoleSelector from './components/common/AdminRoleSelector';
 
 // Dynamically import feature components
 const LessonPlanner = React.lazy(() => import('./components/features/LessonPlanner'));
@@ -71,7 +72,7 @@ const AdminHeader: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const { user, userRole, activeTool, setActiveTool, isAdmin, adminViewMode } = useContext(AppContext);
+  const { user, userRole, activeTool, setActiveTool, isAdmin, adminViewMode, isAdminViewSelected } = useContext(AppContext);
   const { t } = useTranslations();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -116,8 +117,13 @@ const App: React.FC = () => {
   
   const activeToolDetails = TOOLS[activeTool as keyof typeof TOOLS] as ToolConfig;
 
-  // Render dedicated Admin View
-  if (isAdmin && adminViewMode === 'admin') {
+  // 1. Admin logs in, needs to choose their view
+  if (user && isAdmin && !isAdminViewSelected) {
+    return <AdminRoleSelector />;
+  }
+
+  // 2. Admin has chosen the Admin Dashboard view
+  if (user && isAdmin && adminViewMode === 'admin') {
       return (
         <>
             <SubscriptionModal />
@@ -133,12 +139,12 @@ const App: React.FC = () => {
       );
   }
 
-  // If user is not logged in AND not trying to view an info page, show home screen.
-  if ((!user || !userRole) && !isInfoPage) {
+  // 3. User is not logged in OR is a regular user who hasn't chosen a role yet
+  if (!user || (!userRole && !isAdmin)) {
     return <HomeScreen />;
   }
   
-  // Minimal layout for unauthenticated users viewing info pages.
+  // 4. Minimal layout for unauthenticated users viewing info pages.
   if (isInfoPage && (!user || !userRole)) {
       return (
         <div className="h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200 flex flex-col">
@@ -159,6 +165,7 @@ const App: React.FC = () => {
       );
   }
   
+  // 5. Main App for Students, Teachers, and Admins in User View
   const mainContentContainerClasses = isVisualAssistantActive
     ? "h-full w-full" 
     : "max-w-5xl mx-auto p-4 sm:p-6 lg:p-8";

@@ -8,7 +8,7 @@ import Spinner from '../common/Spinner';
 import Input from '../common/Input';
 import Select from '../common/Select';
 
-type EditableUser = User & { uid: string; subscription: any; settings: any; createdAt: Date };
+type EditableUser = User & { uid: string; subscription: any; settings: any; createdAt: Date; isAdmin: boolean };
 
 const AdminPanel: React.FC = () => {
     const { appConfig } = useContext(AppContext);
@@ -49,9 +49,20 @@ const AdminPanel: React.FC = () => {
     const handleUserUpdate = async (uid: string, field: string, value: any) => {
         try {
             await firestoreService.updateUserData(uid, { [field]: value });
-            // FIX: Correctly access the nested property to update the local state.
-            // The original code was trying to use a string array `field.split('.')` as an object key.
-            setUsers(prevUsers => prevUsers.map(u => u.uid === uid ? { ...u, [field.split('.')[0]]: { ...u[field.split('.')[0] as keyof typeof u], [field.split('.')[1]]: value } } : u));
+            setUsers(prevUsers => prevUsers.map(user => {
+                if (user.uid !== uid) return user;
+    
+                // Deep clone to avoid mutation issues
+                const updatedUser = JSON.parse(JSON.stringify(user));
+                const fieldParts = field.split('.');
+                
+                if (fieldParts.length === 2) {
+                    updatedUser[fieldParts[0]][fieldParts[1]] = value;
+                } else {
+                    updatedUser[fieldParts[0]] = value;
+                }
+                return updatedUser;
+            }));
         } catch (err) {
             alert("Failed to update user. Please check console for errors.");
             console.error(err);
@@ -98,6 +109,7 @@ const AdminPanel: React.FC = () => {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">User</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tier</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Admin</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Joined</th>
                             </tr>
                         </thead>
@@ -133,6 +145,18 @@ const AdminPanel: React.FC = () => {
                                             <option value="silver">Silver</option>
                                             <option value="gold">Gold</option>
                                         </Select>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={user.isAdmin}
+                                            onClick={() => handleUserUpdate(user.uid, 'isAdmin', !user.isAdmin)}
+                                            className={`${user.isAdmin ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-slate-600'} relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+                                            title={user.isAdmin ? 'Revoke Admin' : 'Grant Admin'}
+                                        >
+                                            <span className={`${user.isAdmin ? 'translate-x-6' : 'translate-x-1'} inline-block w-4 h-4 transform bg-white rounded-full transition-transform`} />
+                                        </button>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                         {user.createdAt.toLocaleDateString()}

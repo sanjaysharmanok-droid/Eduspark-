@@ -115,7 +115,7 @@ export const getIsAdmin = async (uid: string): Promise<boolean> => {
     return userData?.isAdmin === true;
 };
 
-export const getAllUsers = async (): Promise<(User & { uid: string; subscription: any; settings: any; createdAt: any })[]> => {
+export const getAllUsers = async (): Promise<(User & { uid: string; subscription: any; settings: any; createdAt: any; isAdmin: boolean })[]> => {
     const usersRef = collection(db, "users");
     const snapshot = await getDocs(usersRef);
     return snapshot.docs.map(doc => ({
@@ -126,6 +126,7 @@ export const getAllUsers = async (): Promise<(User & { uid: string; subscription
         subscription: doc.data().subscription,
         settings: doc.data().settings,
         createdAt: doc.data().profile.createdAt.toDate(), // Convert Firestore timestamp to Date
+        isAdmin: doc.data().isAdmin || false,
     }));
 };
 
