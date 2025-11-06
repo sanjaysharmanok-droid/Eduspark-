@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole } from './types';
-import { BookOpenIcon, SparklesIcon, BeakerIcon, ClipboardDocumentListIcon, LightBulbIcon, PresentationChartBarIcon, AcademicCapIcon, CameraIcon, SettingsIcon, LibraryIcon, ReportIcon, InformationCircleIcon, DocumentTextIcon } from './components/icons';
+import { BookOpenIcon, SparklesIcon, BeakerIcon, ClipboardDocumentListIcon, LightBulbIcon, PresentationChartBarIcon, AcademicCapIcon, CameraIcon, SettingsIcon, LibraryIcon, ReportIcon, InformationCircleIcon, DocumentTextIcon, MailIcon, RefreshIcon, CreditCardIcon } from './components/icons';
 
 export const TOOLS: Record<string, ToolConfig> = {
   // Student Tools
@@ -114,6 +114,12 @@ export const TOOLS: Record<string, ToolConfig> = {
 
 
   // Common Tools
+  planInformation: {
+    nameKey: 'planInformation_name',
+    descriptionKey: 'planInformation_desc',
+    icon: <CreditCardIcon />,
+    role: 'student', // Role is nominal; visible to all signed-in users
+  },
   settings: {
     nameKey: 'settings_name',
     descriptionKey: 'settings_desc',
@@ -138,6 +144,18 @@ export const TOOLS: Record<string, ToolConfig> = {
     nameKey: 'termsAndConditions_name',
     descriptionKey: 'termsAndConditions_desc',
     icon: <ClipboardDocumentListIcon />,
+    role: 'student',
+  },
+  contactUs: {
+    nameKey: 'contactUs_name',
+    descriptionKey: 'contactUs_desc',
+    icon: <MailIcon />,
+    role: 'student',
+  },
+  refundPolicy: {
+    nameKey: 'refundPolicy_name',
+    descriptionKey: 'refundPolicy_desc',
+    icon: <RefreshIcon />,
     role: 'student',
   },
 };

@@ -25,7 +25,6 @@ interface AppContextType {
   userRole: UserRole | null;
   setUserRole: (role: UserRole | null) => void;
   theme: Theme;
-  toggleTheme: () => void;
   language: Language;
   setLanguage: (lang: Language) => void;
   lessonLists: LessonList[];
@@ -103,7 +102,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (userData) {
           // Set state from Firestore data
           setUserRoleState(userData.settings.role || null);
-          setThemeState(userData.settings.theme || 'light');
           setLanguageState(userData.settings.language || 'en');
           setSubscriptionTier(userData.subscription.tier || 'free');
           setCredits(userData.subscription.credits || 0);
@@ -130,7 +128,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
          // Reset state on logout
         setUserRoleState(null);
-        setThemeState('light');
         setLessonLists([]);
         setQuizAttempts([]);
       }
@@ -138,12 +135,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fetchData();
   }, [firebaseUser]);
   
-  // Set theme class on body
-  useEffect(() => { 
-      const root = window.document.documentElement; 
-      root.classList.remove('light', 'dark'); 
-      root.classList.add(theme); 
-  }, [theme]);
+  // Set theme based on system preference
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      const newTheme = e.matches ? 'dark' : 'light';
+      setThemeState(newTheme);
+      const root = window.document.documentElement;
+      root.classList.remove('light', 'dark');
+      root.classList.add(newTheme);
+    };
+
+    // Set initial theme
+    handleChange({ matches: mediaQuery.matches } as MediaQueryListEvent);
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
   
   // Update default tool when role changes
   useEffect(() => { if (userRole) setActiveTool(defaultTool); }, [userRole, defaultTool]);
@@ -179,12 +187,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUserRoleState(role);
     if (firebaseUser) firestoreService.updateUserData(firebaseUser.uid, { 'settings.role': role });
   }, [firebaseUser]);
-
-  const toggleTheme = useCallback(() => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setThemeState(newTheme);
-    if (firebaseUser) firestoreService.updateUserData(firebaseUser.uid, { 'settings.theme': newTheme });
-  }, [theme, firebaseUser]);
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
@@ -242,7 +244,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [firebaseUser, credits, usage]);
   
   const value = useMemo(() => ({
-    user, firebaseUser, signOut, userRole, setUserRole, theme, toggleTheme, language, setLanguage,
+    user, firebaseUser, signOut, userRole, setUserRole, theme, language, setLanguage,
     lessonLists, addLessonList, addTopicToLessonList, quizAttempts, addQuizAttempt,
     activeQuizTopic, setActiveQuizTopic, activeTool, setActiveTool,
     subscriptionTier, credits, usage, isSubscriptionModalOpen, setIsSubscriptionModalOpen,
@@ -250,7 +252,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }), [
     user, firebaseUser, signOut, userRole, theme, language, lessonLists, quizAttempts, activeQuizTopic, activeTool,
     subscriptionTier, credits, usage, isSubscriptionModalOpen, startGuestSession,
-    setUserRole, toggleTheme, setLanguage, addLessonList, addTopicToLessonList, addQuizAttempt,
+    setUserRole, setLanguage, addLessonList, addTopicToLessonList, addQuizAttempt,
     setActiveTool, upgradeSubscription, canUseFeature, useFeature
   ]);
 

@@ -10,7 +10,7 @@ const TermsAndConditionsPage: React.FC = () => {
           <p><em>Last updated: {new Date().toLocaleDateString()}</em></p>
 
           <h2>1. Agreement to Terms</h2>
-          <p>By using the EduSpark AI application, you agree to be bound by these Terms and Conditions. If you do not agree, do not use the application.</p>
+          <p>By using the EduSpark AI application ("Service"), you agree to be bound by these Terms and Conditions. If you do not agree, do not use the application.</p>
 
           <h2>2. Use of Service</h2>
           <p>EduSpark AI provides AI-powered tools for educational purposes. You agree to use these tools responsibly and for their intended purpose. You must not use the service for any illegal or unauthorized purpose.</p>
@@ -19,7 +19,7 @@ const TermsAndConditionsPage: React.FC = () => {
           <p>You are responsible for safeguarding your account and for any activities or actions under your account. We encourage you to use a strong password and to keep your account information confidential.</p>
           
           <h2>4. Subscriptions and Payments</h2>
-          <p>Some features of the service are billed on a subscription basis. You will be billed in advance on a recurring, periodic basis (e.g., monthly). Your subscription will automatically renew unless you cancel it. All payments are handled by our third-party payment processors (Stripe, Cashfree). We do not store your credit card details.</p>
+          <p>Some features of the service are billed on a subscription basis. You will be billed in advance on a recurring, periodic basis (e.g., monthly). Your subscription will automatically renew unless you cancel it. All payments are handled by our third-party payment processors (Stripe, Cashfree). We do not store your credit card details. Please see our Refund & Cancellation Policy for more details.</p>
 
           <h2>5. Intellectual Property</h2>
           <p>The Service and its original content, features, and functionality are and will remain the exclusive property of EduSpark AI. While you own the specific inputs you provide, the generated outputs (e.g., lesson plans, quiz questions) are provided to you under a license for personal and educational use.</p>
@@ -29,6 +29,9 @@ const TermsAndConditionsPage: React.FC = () => {
           
           <h2>7. Changes to Terms</h2>
           <p>We reserve the right to modify or replace these Terms at any time. We will provide notice of any changes by posting the new Terms on this page.</p>
+
+          <h2>8. Governing Law</h2>
+          <p>The EduSpark AI service is provided by Vinayak Shikshan Sansthan. These Terms shall be governed and construed in accordance with the laws of India, without regard to its conflict of law provisions.</p>
         </div>
       </Card>
     </div>

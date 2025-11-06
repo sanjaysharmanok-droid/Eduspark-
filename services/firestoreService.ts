@@ -24,7 +24,6 @@ export const createUserProfileDocument = async (firebaseUser: FirebaseUser, addi
       },
       settings: {
         role: null,
-        theme: 'light',
         language: 'en',
       },
       subscription: {

@@ -160,19 +160,27 @@ const VisualAssistant: React.FC = () => {
 
             if (videoRef.current) {
                  videoRef.current.srcObject = stream;
+                 videoRef.current.play().catch(e => console.error("Initial video play failed:", e));
             }
 
             inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
             outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
             
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            
+            const systemInstruction = `You are a helpful and interactive visual assistant. You will receive a continuous stream of images from a user's camera and their voice. Your goal is to have a natural, real-time conversation about what the user is seeing.
+- When the user asks a question, answer it based on the visual context.
+- If the user is quiet for a moment but the scene changes, you can proactively comment on what you see. For example, "That's an interesting painting," or "It looks like you're holding a book."
+- Keep your responses concise and conversational to maintain a low-latency feel.
+- All your spoken responses must be in ${language}.`;
+
             sessionPromiseRef.current = ai.live.connect({
                 model: 'gemini-2.5-flash-native-audio-preview-09-2025',
                 config: {
                     responseModalities: [Modality.AUDIO],
                     inputAudioTranscription: {},
                     outputAudioTranscription: {},
-                    systemInstruction: `You are a helpful visual assistant. Your responses will be in ${language}. Be concise.`
+                    systemInstruction: systemInstruction
                 },
                 callbacks: {
                     onopen: () => {
@@ -338,6 +346,7 @@ const VisualAssistant: React.FC = () => {
                     // Re-assigning the srcObject ensures the video element updates.
                     if (videoRef.current) {
                         videoRef.current.srcObject = streamRef.current;
+                        videoRef.current.play().catch(e => console.error("Camera switch video play failed:", e));
                     }
                 } catch(e) {
                     console.error("Error switching camera:", e);

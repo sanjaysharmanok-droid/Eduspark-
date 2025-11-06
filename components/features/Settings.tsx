@@ -5,6 +5,8 @@ import Card from '../common/Card';
 import Button from '../common/Button';
 import { Language, Theme } from '../../types';
 import Select from '../common/Select';
+import { ToolKey } from '../../constants';
+import { ChevronRightIcon } from '../icons';
 
 const Settings: React.FC = () => {
   const { 
@@ -12,10 +14,9 @@ const Settings: React.FC = () => {
     signOut, 
     userRole, 
     setUserRole,
-    theme,
-    toggleTheme,
     language,
-    setLanguage
+    setLanguage,
+    setActiveTool
   } = useContext(AppContext);
   const { t } = useTranslations();
 
@@ -24,6 +25,14 @@ const Settings: React.FC = () => {
   };
 
   const isGuest = user?.email === 'guest@eduspark.ai';
+  
+  const infoLinks: { key: ToolKey; label: string }[] = [
+    { key: 'about', label: 'About Us' },
+    { key: 'privacyPolicy', label: 'Privacy Policy' },
+    { key: 'termsAndConditions', label: 'Terms & Conditions' },
+    { key: 'contactUs', label: 'Contact Us' },
+    { key: 'refundPolicy', label: 'Refund Policy' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -81,20 +90,29 @@ const Settings: React.FC = () => {
           
           <div className="border-t border-gray-200 dark:border-white/10"></div>
           
-          <div className="flex justify-between items-center">
-             <label htmlFor="theme-toggle" className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('theme')}</label>
-             <button
-                id="theme-toggle"
-                type="button"
-                role="switch"
-                aria-checked={theme === 'dark'}
-                onClick={toggleTheme}
-                className={`${theme === 'dark' ? 'bg-indigo-500' : 'bg-gray-300'} relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-900 focus:ring-indigo-500`}
-            >
-                <span className={`${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'} inline-block w-4 h-4 transform bg-white rounded-full transition-transform`} />
-            </button>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">{t('theme')}</label>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {t('systemTheme_info')}
+            </p>
           </div>
         </div>
+      </Card>
+      
+      <Card title="Information & Support">
+          <div className="divide-y divide-gray-200 dark:divide-white/10">
+              {infoLinks.map(link => (
+                  <button 
+                      key={link.key} 
+                      onClick={() => setActiveTool(link.key)}
+                      className="w-full text-left py-4 flex justify-between items-center group"
+                      aria-label={`Navigate to ${link.label}`}
+                  >
+                      <span className="text-lg text-gray-800 dark:text-gray-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{link.label}</span>
+                      <ChevronRightIcon className="w-5 h-5 text-gray-400 dark:text-gray-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
+                  </button>
+              ))}
+          </div>
       </Card>
     </div>
   );

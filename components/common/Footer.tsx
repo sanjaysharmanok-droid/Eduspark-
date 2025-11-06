@@ -9,11 +9,13 @@ const Footer: React.FC = () => {
         { key: 'about', label: 'About Us' },
         { key: 'privacyPolicy', label: 'Privacy Policy' },
         { key: 'termsAndConditions', label: 'Terms & Conditions' },
+        { key: 'contactUs', label: 'Contact Us' },
+        { key: 'refundPolicy', label: 'Refund Policy' },
     ];
 
     return (
         <footer className="w-full text-center py-4 px-4">
-            <div className="flex justify-center items-center space-x-4 sm:space-x-6 text-sm">
+            <div className="flex justify-center items-center flex-wrap gap-x-4 gap-y-2 sm:gap-x-6 text-sm">
                 {links.map(link => (
                     <button 
                         key={link.key}

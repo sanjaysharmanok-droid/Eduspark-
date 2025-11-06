@@ -5,16 +5,16 @@ import { TOOLS, ToolKey } from '../../constants';
 import { EllipsisHorizontalIcon, SparklesIcon } from '../icons';
 
 const BottomNavBar: React.FC = () => {
-    const { userRole, activeTool, setActiveTool, subscriptionTier, credits, setIsSubscriptionModalOpen } = useContext(AppContext);
+    const { userRole, activeTool, setActiveTool, subscriptionTier, setIsSubscriptionModalOpen } = useContext(AppContext);
     const { t } = useTranslations();
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
     // Define primary and secondary tools for each role
     const studentPrimary = ['homeworkHelper', 'topicExplorer', 'summarizer'];
-    const studentSecondary = ['factFinder', 'visualAssistant', 'quizGenerator', 'myLibrary', 'myReports', 'settings'];
+    const studentSecondary = ['factFinder', 'visualAssistant', 'quizGenerator', 'myLibrary', 'myReports', 'planInformation', 'settings'];
     
     const teacherPrimary = ['lessonPlanner', 'activityGenerator', 'summarizerTeacher'];
-    const teacherSecondary = ['presentationGenerator', 'reportCardHelper', 'quizGeneratorTeacher', 'visualAssistantTeacher', 'settings'];
+    const teacherSecondary = ['presentationGenerator', 'reportCardHelper', 'quizGeneratorTeacher', 'visualAssistantTeacher', 'planInformation', 'settings'];
     
     const primaryTools = userRole === 'student' ? studentPrimary : teacherPrimary;
     const secondaryTools = userRole === 'student' ? studentSecondary : teacherSecondary;
@@ -57,22 +57,20 @@ const BottomNavBar: React.FC = () => {
 
             {/* "More" menu panel */}
             <div className={`fixed bottom-28 left-2 right-2 p-4 glass-card rounded-2xl z-40 transition-transform duration-300 ease-in-out ${isMoreMenuOpen ? 'translate-y-0' : 'translate-y-[150%]'}`}>
-                <div className="p-3 mb-4 text-center rounded-lg bg-black/5 dark:bg-black/10">
-                    <p className="text-sm font-semibold text-gray-800 dark:text-white capitalize">{subscriptionTier} Plan</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">{credits} Credits Remaining</p>
-                    {subscriptionTier !== 'gold' && (
+                {subscriptionTier !== 'gold' && (
+                    <div className="p-3 mb-4 text-center rounded-lg bg-black/5 dark:bg-black/10">
                         <button
                             onClick={() => {
                                 setIsSubscriptionModalOpen(true);
                                 setIsMoreMenuOpen(false); // Close the panel
                             }}
-                            className="w-full flex items-center justify-center mt-2 p-2 rounded-lg text-left transition-all duration-300 bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:opacity-90 hover:shadow-lg hover:shadow-indigo-500/50 space-x-2"
+                            className="w-full flex items-center justify-center p-2 rounded-lg text-left transition-all duration-300 bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:opacity-90 hover:shadow-lg hover:shadow-indigo-500/50 space-x-2"
                         >
                             <SparklesIcon className="w-5 h-5"/>
-                            <span className="text-sm font-bold">Upgrade</span>
+                            <span className="text-sm font-bold">Upgrade Plan</span>
                         </button>
-                    )}
-                </div>
+                    </div>
+                )}
                 <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-2">More Tools</h3>
                 <ul className="grid grid-cols-2 gap-2">
                     {moreMenuItems.map(item => (

@@ -36,7 +36,7 @@ const PrivacyPolicyPage: React.FC = () => {
           <p>We use administrative, technical, and physical security measures to help protect your personal information. While we have taken reasonable steps to secure the personal information you provide to us, please be aware that despite our efforts, no security measures are perfect or impenetrable, and no method of data transmission can be guaranteed against any interception or other type of misuse.</p>
 
           <h2>Contact Us</h2>
-          <p>If you have questions or comments about this Privacy Policy, please contact us at: support@eduspark.ai</p>
+          <p>If you have questions or comments about this Privacy Policy, please contact us at: help@edusparks.online</p>
         </div>
       </Card>
     </div>

@@ -22,9 +22,12 @@ const MyLibrary = React.lazy(() => import('./components/features/MyLibrary'));
 const MyReports = React.lazy(() => import('./components/features/MyReports'));
 const FactFinder = React.lazy(() => import('./components/features/FactFinder'));
 const Summarizer = React.lazy(() => import('./components/features/Summarizer'));
+const PlanInformation = React.lazy(() => import('./components/features/PlanInformation'));
 const AboutPage = React.lazy(() => import('./components/features/AboutPage'));
 const PrivacyPolicyPage = React.lazy(() => import('./components/features/PrivacyPolicyPage'));
 const TermsAndConditionsPage = React.lazy(() => import('./components/features/TermsAndConditionsPage'));
+const ContactUsPage = React.lazy(() => import('./components/features/ContactUsPage'));
+const RefundPolicyPage = React.lazy(() => import('./components/features/RefundPolicyPage'));
 
 const useMediaQuery = (query: string) => {
     const [matches, setMatches] = useState(false);
@@ -48,7 +51,7 @@ const App: React.FC = () => {
 
   const isMobile = useMediaQuery('(max-width: 1023px)');
   const isVisualAssistantActive = activeTool === 'visualAssistant' || activeTool === 'visualAssistantTeacher';
-  const isInfoPage = ['about', 'privacyPolicy', 'termsAndConditions'].includes(activeTool);
+  const isInfoPage = ['about', 'privacyPolicy', 'termsAndConditions', 'contactUs', 'refundPolicy'].includes(activeTool);
 
   const activeComponent = useMemo(() => {
     switch (activeTool) {
@@ -71,9 +74,12 @@ const App: React.FC = () => {
       case 'summarizer':
       case 'summarizerTeacher':
         return <Summarizer />;
+      case 'planInformation': return <PlanInformation />;
       case 'about': return <AboutPage />;
       case 'privacyPolicy': return <PrivacyPolicyPage />;
       case 'termsAndConditions': return <TermsAndConditionsPage />;
+      case 'contactUs': return <ContactUsPage />;
+      case 'refundPolicy': return <RefundPolicyPage />;
       default: return <LessonPlanner />;
     }
   }, [activeTool]);
@@ -139,7 +145,6 @@ const App: React.FC = () => {
             {activeComponent}
           </React.Suspense>
         </div>
-        {!isVisualAssistantActive && <Footer />}
       </main>
       {!isVisualAssistantActive && <BottomNavBar />}
     </div>

@@ -13,6 +13,7 @@ export const translations = {
   myReports_name: { en: 'My Reports', hi: 'मेरी रिपोर्ट', es: 'Mis Informes', fr: 'Mes Rapports' },
   factFinder_name: { en: 'Fact Finder', hi: 'तथ्य खोजक', es: 'Buscador de Hechos', fr: 'Chercheur de Faits' },
   summarizer_name: { en: 'Summarizer', hi: 'सारांशक', es: 'Resumidor', fr: 'Résumeur' },
+  planInformation_name: { en: 'Plan & Usage', hi: 'योजना और उपयोग', es: 'Plan y Uso', fr: 'Forfait et Utilisation' },
 
   // Tool Descriptions
   homeworkHelper_desc: { en: 'Get help with tough questions and understand complex subjects.', hi: 'कठिन प्रश्नों में सहायता प्राप्त करें और जटिल विषयों को समझें।', es: 'Obtén ayuda con preguntas difíciles y comprende temas complejos.', fr: 'Obtenez de l\'aide pour les questions difficiles et comprenez des sujets complexes.' },
@@ -30,6 +31,7 @@ export const translations = {
   factFinder_desc: { en: 'Get a list of interesting facts about any topic.', hi: 'किसी भी विषय के बारे में रोचक तथ्यों की सूची प्राप्त करें।', es: 'Obtén una lista de datos interesantes sobre cualquier tema.', fr: 'Obtenez une liste de faits intéressants sur n\'importe quel sujet.' },
   summarizer_desc: { en: 'Summarize long texts into key points or paragraphs.', hi: 'लंबे पाठों को मुख्य बिंदुओं या पैराग्राफ में सारांशित करें।', es: 'Resume textos largos en puntos clave o párrafos.', fr: 'Résumez de longs textes en points clés ou en paragraphes.' },
   summarizer_desc_teacher: { en: 'Quickly summarize articles or documents for lesson materials.', hi: 'पाठ सामग्री के लिए लेखों या दस्तावेजों को शीघ्रता से सारांशित करें।', es: 'Resume rápidamente artículos o documentos para material didáctico.', fr: 'Résumez rapidement des articles ou des documents pour le matériel de cours.' },
+  planInformation_desc: { en: 'View your current plan, credits, and daily usage.', hi: 'अपनी वर्तमान योजना, क्रेडिट और दैनिक उपयोग देखें।', es: 'Vea su plan actual, créditos y uso diario.', fr: 'Consultez votre forfait actuel, vos crédits et votre utilisation quotidienne.' },
 
 
   // Categories
@@ -46,6 +48,7 @@ export const translations = {
   settings: { en: 'Settings', hi: 'सेटिंग्स', es: 'Ajustes', fr: 'Paramètres' },
   language: { en: 'Language', hi: 'भाषा', es: 'Idioma', fr: 'Langue' },
   theme: { en: 'Theme', hi: 'थीम', es: 'Tema', fr: 'Thème' },
+  systemTheme_info: { en: 'The app theme automatically matches your system settings.', hi: 'ऐप की थीम स्वचालित रूप से आपकी सिस्टम सेटिंग्स से मेल खाती है।', es: 'El tema de la aplicación coincide automáticamente con la configuración de su sistema.', fr: 'Le thème de l\'application correspond automatiquement aux paramètres de votre système.' },
   
   // Response Controls
   outputLanguage: { en: 'Output Language', hi: 'आउटपुट भाषा', es: 'Idioma de Salida', fr: 'Langue de Sortie' },
@@ -58,4 +61,8 @@ export const translations = {
   privacyPolicy_desc: { en: 'How we collect, use, and protect your data.', hi: 'हम आपके डेटा को कैसे एकत्रित, उपयोग और संरक्षित करते हैं।', es: 'Cómo recopilamos, usamos y protegemos sus datos.', fr: 'Comment nous collectons, utilisons et protégeons vos données.' },
   termsAndConditions_name: { en: 'Terms & Conditions', hi: 'नियम एवं शर्तें', es: 'Términos y Condiciones', fr: 'Termes et Conditions' },
   termsAndConditions_desc: { en: 'The rules and guidelines for using our services.', hi: 'हमारी सेवाओं का उपयोग करने के नियम और दिशानिर्देश।', es: 'Las reglas y pautas para usar nuestros servicios.', fr: 'Les règles et directives d\'utilisation de nos services.' },
+  contactUs_name: { en: 'Contact Us', hi: 'हमसे संपर्क करें', es: 'Contáctenos', fr: 'Contactez-nous' },
+  contactUs_desc: { en: 'Get in touch with the EduSpark AI team.', hi: 'एडस्पार्क एआई टीम से संपर्क करें।', es: 'Póngase en contacto con el equipo de EduSpark AI.', fr: 'Prenez contact avec l\'équipe d\'EduSpark AI.' },
+  refundPolicy_name: { en: 'Refund Policy', hi: 'धनवापसी नीति', es: 'Política de Reembolso', fr: 'Politique de Remboursement' },
+  refundPolicy_desc: { en: 'Our policy on refunds and cancellations.', hi: 'धनवापसी और रद्दीकरण पर हमारी नीति।', es: 'Nuestra política sobre reembolsos y cancelaciones.', fr: 'Notre politique sur les remboursements et les annulations.' },
 };

@@ -13,15 +13,16 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTool, setActiveTool, isSidebarCollapsed, setIsSidebarCollapsed }) => {
-  const { userRole, subscriptionTier, credits, setIsSubscriptionModalOpen } = useContext(AppContext);
+  const { userRole, setIsSubscriptionModalOpen } = useContext(AppContext);
   const { t } = useTranslations();
 
   const mainTools = Object.entries(TOOLS)
-    .filter(([key]) => key !== 'settings')
+    .filter(([key]) => !['settings', 'planInformation'].includes(key) && !TOOLS[key as ToolKey].nameKey.includes('desc')) // Filter out static pages
     .filter(([, config]) => config.role === userRole)
     .map(([key, config]) => ({ key: key as ToolKey, ...config }));
 
   const settingsTool = TOOLS['settings'] ? { key: 'settings' as ToolKey, ...TOOLS['settings'] } : null;
+  const planTool = TOOLS['planInformation'] ? { key: 'planInformation' as ToolKey, ...TOOLS['planInformation'] } : null;
 
   const getToolItemClasses = (toolKey: ToolKey) => {
     const isActive = activeTool === toolKey;
@@ -75,25 +76,29 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, setActiveTool, isSidebarC
           </ul>
       </nav>
 
-      <div className="mt-auto p-2 pt-2 space-y-2">
-         <div className="px-2 py-2 text-center rounded-lg bg-black/5 dark:bg-black/10">
-            {!isSidebarCollapsed && (
-              <>
-                <p className="text-sm font-semibold text-gray-800 dark:text-white capitalize">{subscriptionTier} Plan</p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">{credits} Credits Remaining</p>
-              </>
-            )}
-            {subscriptionTier !== 'gold' && (
-               <button
-                  onClick={() => setIsSubscriptionModalOpen(true)}
-                  title={isSidebarCollapsed ? "Upgrade Plan" : ""}
-                  className={`w-full flex items-center mt-2 p-2 rounded-lg text-left transition-all duration-300 bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:opacity-90 hover:shadow-lg hover:shadow-indigo-500/50 ${isSidebarCollapsed ? 'justify-center' : 'space-x-2'}`}
-                >
-                    <SparklesIcon className="w-5 h-5"/>
-                    {!isSidebarCollapsed && <span className="text-sm font-bold">Upgrade</span>}
-                </button>
-            )}
+      <div className="mt-auto p-2 pt-2 space-y-1">
+         <div className="px-2">
+            <button
+                onClick={() => setIsSubscriptionModalOpen(true)}
+                title={isSidebarCollapsed ? "Upgrade Plan" : ""}
+                className={`w-full flex items-center p-3 rounded-lg text-left transition-all duration-300 bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:opacity-90 hover:shadow-lg hover:shadow-indigo-500/50 ${isSidebarCollapsed ? 'justify-center' : 'space-x-3'}`}
+            >
+                <SparklesIcon className="w-5 h-5"/>
+                {!isSidebarCollapsed && <span className="text-sm font-bold">Upgrade Plan</span>}
+            </button>
          </div>
+         {planTool && (
+           <div>
+              <button
+                onClick={() => setActiveTool(planTool.key)}
+                title={isSidebarCollapsed ? t(planTool.nameKey) : ''}
+                className={getToolItemClasses(planTool.key)}
+              >
+                <span className={getIconClasses(planTool.key)}>{planTool.icon}</span>
+                {!isSidebarCollapsed && <span className={getTextClasses(planTool.key)}>{t(planTool.nameKey)}</span>}
+              </button>
+           </div>
+        )}
          {settingsTool && (
            <div>
               <button
