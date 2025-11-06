@@ -139,12 +139,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     setCredits(userData.subscription?.credits || 0);
 
                     if (isAdminUser) {
-                        setIsAdminViewSelected(false); // Force admin to choose their view on login
+                        // Admin Flow: Force selection, clear role to prevent conflicts.
+                        setIsAdminViewSelected(false); 
+                        setUserRoleState(null); 
+                        setAdminViewMode(null);
                     } else {
+                        // Regular User Flow
                         const role = userData.settings?.role || null;
                         setUserRoleState(role);
                         setAdminViewMode(null);
-                        setIsAdminViewSelected(true); // Non-admin view is selected by default
+                        setIsAdminViewSelected(true);
                         if (role) {
                              setActiveTool(role === 'teacher' ? 'lessonPlanner' : 'homeworkHelper');
                         }
@@ -314,7 +318,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     user, firebaseUser, signOut, userRole, theme, language, lessonLists, quizAttempts, activeQuizTopic, activeTool,
     subscriptionTier, credits, usage, isSubscriptionModalOpen, startGuestSession, isAdmin, appConfig, adminViewMode, isAdminViewSelected,
     setUserRole, setLanguage, addLessonList, addTopicToLessonList, addQuizAttempt,
-    setActiveTool, upgradeSubscription, canUseFeature, useFeature, selectAdminView
+    setActiveTool, upgradeSubscription, canUseFeature, useFeature, selectAdminView, setAdminViewMode
   ]);
 
   if (authLoading || dataLoading) {
