@@ -117,13 +117,38 @@ const App: React.FC = () => {
   
   const activeToolDetails = TOOLS[activeTool as keyof typeof TOOLS] as ToolConfig;
 
-  // 1. Admin logs in, needs to choose their view
-  if (user && isAdmin && !isAdminViewSelected) {
+  // 1. Not logged in
+  if (!user) {
+    // Allow viewing info pages even when logged out
+    if (isInfoPage) {
+      return (
+        <div className="h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200 flex flex-col">
+          <main className="flex-1 overflow-y-auto scrollbar-thin">
+            <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+               <div className="flex justify-start mb-6">
+                 <a href="/" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                    &larr; Back to Home
+                 </a>
+               </div>
+              <React.Suspense fallback={<div className="text-center p-8">Loading...</div>}>
+                {activeComponent}
+              </React.Suspense>
+            </div>
+          </main>
+          <Footer />
+        </div>
+      );
+    }
+    return <HomeScreen />;
+  }
+
+  // 2. Logged in as Admin, but hasn't selected their view yet
+  if (isAdmin && !isAdminViewSelected) {
     return <AdminRoleSelector />;
   }
 
-  // 2. Admin has chosen the Admin Dashboard view
-  if (user && isAdmin && adminViewMode === 'admin') {
+  // 3. Admin has chosen the Admin Dashboard view
+  if (isAdmin && adminViewMode === 'admin') {
       return (
         <>
             <SubscriptionModal />
@@ -138,33 +163,12 @@ const App: React.FC = () => {
         </>
       );
   }
-
-  // 3. User is not logged in OR is a regular user who hasn't chosen a role yet
-  if (!user || (!userRole && !isAdmin)) {
+  
+  // 4. Regular user (or admin in user view) who hasn't chosen a role
+  if (!userRole) {
     return <HomeScreen />;
   }
-  
-  // 4. Minimal layout for unauthenticated users viewing info pages.
-  if (isInfoPage && (!user || !userRole)) {
-      return (
-        <div className="h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200 flex flex-col">
-          <main className="flex-1 overflow-y-auto scrollbar-thin">
-            <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
-               <div className="flex justify-start mb-6">
-                 <button onClick={() => setActiveTool('lessonPlanner')} className="text-indigo-600 dark:text-indigo-400 hover:underline">
-                    &larr; Back to Home
-                 </button>
-               </div>
-              <React.Suspense fallback={<div className="text-center p-8">Loading...</div>}>
-                {activeComponent}
-              </React.Suspense>
-            </div>
-          </main>
-          <Footer />
-        </div>
-      );
-  }
-  
+
   // 5. Main App for Students, Teachers, and Admins in User View
   const mainContentContainerClasses = isVisualAssistantActive
     ? "h-full w-full" 

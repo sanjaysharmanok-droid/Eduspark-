@@ -19,6 +19,17 @@ const DAILY_LIMITS = {
   activities: 3,
 };
 
+// ====================================================================================
+// IMPORTANT: ADD YOUR ADMIN EMAIL HERE
+// ====================================================================================
+// This is the new, simple way to define who is an admin.
+// Just replace the placeholder with your actual admin Gmail address (in lowercase).
+// You can add more emails by separating them with commas, like:
+// const ADMIN_EMAILS = ['admin1@example.com', 'admin2@example.com'];
+// ====================================================================================
+const ADMIN_EMAILS = ['sanjaysharmanok@gmail.com'];
+
+
 interface AppConfig {
     planPrices: {
         silver: string;
@@ -96,26 +107,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [activeTool, setActiveTool] = useState<ToolKey>('homeworkHelper');
 
-  // Listen for auth changes
+  // Listen for auth changes and check for admin status
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (fbUser: FirebaseUser | null) => {
-      setFirebaseUser(fbUser);
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
       if (fbUser) {
+        // --- NEW ADMIN LOGIC ---
+        // Check if the logged-in user's email is in our list of admins.
+        // This is a simple, frontend-only way to grant admin privileges.
+        const userEmail = fbUser.email?.toLowerCase() || '';
+        const isAdminUser = ADMIN_EMAILS.includes(userEmail);
+        setIsAdmin(isAdminUser);
+        // --- END NEW ADMIN LOGIC ---
+        
         const appUser: User = { name: fbUser.displayName || 'User', email: fbUser.email || '', picture: fbUser.photoURL || '' };
         setUser(appUser);
+        setFirebaseUser(fbUser);
+
+        // Reset views for new login
+        setIsAdminViewSelected(false);
+        setAdminViewMode(null);
+        setUserRoleState(null);
+
       } else {
+        // User signed out
         setUser(null);
+        setFirebaseUser(null);
+        setIsAdmin(false);
+        setUserRoleState(null);
+        setAdminViewMode(null);
+        setIsAdminViewSelected(false);
         setDataLoading(false); // No data to load if not logged in
-        setIsAdmin(false); // Reset admin status on logout
       }
       setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Fetch data when user logs in or on initial load
+  // Fetch data when user is confirmed
   useEffect(() => {
     const fetchData = async () => {
+        if (!firebaseUser) return; // Only run if a user is logged in
+        
         setDataLoading(true);
         try {
             const config = await firestoreService.getAppConfig();
@@ -124,61 +156,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 updateModelConfig(config.aiModels);
             }
 
-            if (firebaseUser) {
-                let userData = await firestoreService.getUserData(firebaseUser.uid);
-                if (!userData) {
-                    userData = await firestoreService.createUserProfileDocument(firebaseUser);
-                }
+            let userData = await firestoreService.getUserData(firebaseUser.uid);
+            if (!userData) {
+                userData = await firestoreService.createUserProfileDocument(firebaseUser);
+            }
 
-                if (userData) {
-                    const isAdminUser = userData.isAdmin === true;
-                    setIsAdmin(isAdminUser);
-                    
-                    setLanguageState(userData.settings?.language || 'en');
-                    setSubscriptionTier(userData.subscription?.tier || 'free');
-                    setCredits(userData.subscription?.credits || 0);
-
-                    if (isAdminUser) {
-                        // Admin Flow: Force selection, clear role to prevent conflicts.
-                        setIsAdminViewSelected(false); 
-                        setUserRoleState(null); 
-                        setAdminViewMode(null);
-                    } else {
-                        // Regular User Flow
-                        const role = userData.settings?.role || null;
-                        setUserRoleState(role);
-                        setAdminViewMode(null);
-                        setIsAdminViewSelected(true);
-                        if (role) {
-                             setActiveTool(role === 'teacher' ? 'lessonPlanner' : 'homeworkHelper');
-                        }
+            if (userData) {
+                // The 'isAdmin' status is now handled by the email check, but we still need the role from Firestore for regular users.
+                if (!isAdmin) {
+                    const role = userData.settings?.role || null;
+                    setUserRoleState(role);
+                    if (role) {
+                        setActiveTool(role === 'teacher' ? 'lessonPlanner' : 'homeworkHelper');
                     }
-                    
-                    const todayStr = getTodayDateString();
-                    const userUsage = userData.usage || { date: '1970-01-01', quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 };
-                    
-                    if (userUsage.date !== todayStr) {
-                        const newUsage = { ...usage, date: todayStr };
-                        setUsage(newUsage);
-                        firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
-                    } else {
-                        setUsage(userUsage);
-                    }
-                    
-                    const [lists, attempts] = await Promise.all([
-                       firestoreService.getLessonLists(firebaseUser.uid),
-                       firestoreService.getQuizAttempts(firebaseUser.uid)
-                    ]);
-                    setLessonLists(lists);
-                    setQuizAttempts(attempts);
                 }
-            } else {
-                // Reset state on logout
-                setUserRoleState(null);
-                setLessonLists([]);
-                setQuizAttempts([]);
-                setAdminViewMode(null);
-                setIsAdminViewSelected(false);
+                
+                setLanguageState(userData.settings?.language || 'en');
+                setSubscriptionTier(userData.subscription?.tier || 'free');
+                setCredits(userData.subscription?.credits || 0);
+                
+                const todayStr = getTodayDateString();
+                const userUsage = userData.usage || { date: '1970-01-01', quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 };
+                
+                if (userUsage.date !== todayStr) {
+                    const newUsage = { ...usage, date: todayStr };
+                    setUsage(newUsage);
+                    firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
+                } else {
+                    setUsage(userUsage);
+                }
+                
+                const [lists, attempts] = await Promise.all([
+                   firestoreService.getLessonLists(firebaseUser.uid),
+                   firestoreService.getQuizAttempts(firebaseUser.uid)
+                ]);
+                setLessonLists(lists);
+                setQuizAttempts(attempts);
             }
         } catch (error) {
             console.error("Error fetching user data:", error);
@@ -188,7 +201,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     
     fetchData();
-  }, [firebaseUser]);
+  }, [firebaseUser, isAdmin]); // Rerun when firebaseUser or isAdmin status changes
   
   // Set theme based on system preference
   useEffect(() => {
@@ -208,15 +221,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const signOut = useCallback(async () => {
-    if (firebaseUser) {
-      await firebaseSignOut();
-    } else {
-      setUser(null);
-      setUserRoleState(null);
-    }
-    setAdminViewMode(null);
-    setIsAdminViewSelected(false); // Reset on sign out
-  }, [firebaseUser]);
+    // FIX: The imported `firebaseSignOut` is a wrapper from authService that doesn't take arguments.
+    await firebaseSignOut();
+    // State reset is handled by the onAuthStateChanged listener
+  }, []);
   
   const startGuestSession = useCallback(() => {
     setUser({ name: 'Guest Student', email: 'guest@eduspark.ai', picture: '' });
@@ -227,7 +235,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUsage({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 });
     setLessonLists([]);
     setQuizAttempts([]);
-    setIsAdminViewSelected(true);
+    setIsAdmin(false);
+    setIsAdminViewSelected(false); // Guest is never an admin
     setAuthLoading(false);
     setDataLoading(false);
   }, []);
@@ -321,7 +330,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveTool, upgradeSubscription, canUseFeature, useFeature, selectAdminView, setAdminViewMode
   ]);
 
-  if (authLoading || dataLoading) {
+  if (authLoading) { // Only show loader for initial auth check
     return (
         <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-slate-900">
             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
