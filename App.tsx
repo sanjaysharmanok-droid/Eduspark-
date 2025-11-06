@@ -10,6 +10,7 @@ import Footer from './components/common/Footer';
 import Logo from './components/common/Logo';
 import Button from './components/common/Button';
 import AdminRoleSelector from './components/common/AdminRoleSelector';
+import Spinner from './components/common/Spinner';
 
 // Dynamically import feature components
 const LessonPlanner = React.lazy(() => import('./components/features/LessonPlanner'));
@@ -72,7 +73,17 @@ const AdminHeader: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const { user, userRole, activeTool, setActiveTool, isAdmin, adminViewMode, isAdminViewSelected } = useContext(AppContext);
+  const { 
+      user, 
+      userRole, 
+      activeTool, 
+      setActiveTool, 
+      isAdmin, 
+      adminViewMode, 
+      isAdminViewSelected, 
+      authLoading, // Use loading states from context
+      dataLoading  // Use loading states from context
+  } = useContext(AppContext);
   const { t } = useTranslations();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -117,59 +128,72 @@ const App: React.FC = () => {
   
   const activeToolDetails = TOOLS[activeTool as keyof typeof TOOLS] as ToolConfig;
 
-  // 1. Not logged in
-  if (!user) {
-    // Allow viewing info pages even when logged out
-    if (isInfoPage) {
+  // NEW: Centralized Loading State to prevent race conditions
+  if (authLoading || dataLoading) {
       return (
-        <div className="h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200 flex flex-col">
-          <main className="flex-1 overflow-y-auto scrollbar-thin">
-            <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
-               <div className="flex justify-start mb-6">
-                 <a href="/" className="text-indigo-600 dark:text-indigo-400 hover:underline">
-                    &larr; Back to Home
-                 </a>
-               </div>
-              <React.Suspense fallback={<div className="text-center p-8">Loading...</div>}>
-                {activeComponent}
-              </React.Suspense>
-            </div>
-          </main>
-          <Footer />
-        </div>
+          <div className="flex justify-center items-center h-screen bg-transparent">
+              <Spinner />
+          </div>
       );
-    }
+  }
+
+  // Allow viewing info pages even when logged out
+  if (isInfoPage && !user) {
+    return (
+      <div className="h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200 flex flex-col">
+        <main className="flex-1 overflow-y-auto scrollbar-thin">
+          <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+             <div className="flex justify-start mb-6">
+               <a href="/" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                  &larr; Back to Home
+               </a>
+             </div>
+            <React.Suspense fallback={<div className="text-center p-8">Loading...</div>}>
+              {activeComponent}
+            </React.Suspense>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // 1. User is not logged in. Show the main login screen.
+  if (!user) {
     return <HomeScreen />;
   }
 
-  // 2. Logged in as Admin, but hasn't selected their view yet
-  if (isAdmin && !isAdminViewSelected) {
-    return <AdminRoleSelector />;
+  // 2. User is logged in. Check if they are an admin.
+  if (isAdmin) {
+      // 2a. Admin has not selected their view yet.
+      if (!isAdminViewSelected) {
+          return <AdminRoleSelector />;
+      }
+      // 2b. Admin has selected the "Admin Dashboard" view.
+      if (adminViewMode === 'admin') {
+          return (
+            <>
+                <SubscriptionModal />
+                <div className="h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200 flex flex-col">
+                    <AdminHeader />
+                    <main className="flex-1 overflow-y-auto scrollbar-thin px-4 sm:px-6 lg:px-8 pb-8">
+                         <React.Suspense fallback={<div className="text-center p-8 text-gray-600 dark:text-white/80">Loading Admin Panel...</div>}>
+                            <AdminPanel />
+                        </React.Suspense>
+                    </main>
+                </div>
+            </>
+          );
+      }
+      // 2c. If admin selected 'user' view, the logic will fall through to the main app view below.
   }
 
-  // 3. Admin has chosen the Admin Dashboard view
-  if (isAdmin && adminViewMode === 'admin') {
-      return (
-        <>
-            <SubscriptionModal />
-            <div className="h-screen bg-transparent font-sans text-gray-800 dark:text-gray-200 flex flex-col">
-                <AdminHeader />
-                <main className="flex-1 overflow-y-auto scrollbar-thin px-4 sm:px-6 lg:px-8 pb-8">
-                     <React.Suspense fallback={<div className="text-center p-8 text-gray-600 dark:text-white/80">Loading Admin Panel...</div>}>
-                        <AdminPanel />
-                    </React.Suspense>
-                </main>
-            </div>
-        </>
-      );
-  }
-  
-  // 4. Regular user (or admin in user view) who hasn't chosen a role
+  // 3. User is a regular user (or admin in user view) and has not chosen a role.
   if (!userRole) {
     return <HomeScreen />;
   }
 
-  // 5. Main App for Students, Teachers, and Admins in User View
+  // 4. Main App View for Students, Teachers, and Admins in User View.
   const mainContentContainerClasses = isVisualAssistantActive
     ? "h-full w-full" 
     : "max-w-5xl mx-auto p-4 sm:p-6 lg:p-8";
@@ -194,20 +218,4 @@ const App: React.FC = () => {
                       </div>
                       <div>
                           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t(activeToolDetails.nameKey)}</h1>
-                          <p className="text-gray-600 dark:text-gray-300">{t(activeToolDetails.descriptionKey)}</p>
-                      </div>
-                  </div>
-              </div>
-            )}
-          <React.Suspense fallback={<div className="text-center p-8 text-gray-600 dark:text-white/80">Loading Tool...</div>}>
-            {activeComponent}
-          </React.Suspense>
-        </div>
-      </main>
-      {!isVisualAssistantActive && <BottomNavBar />}
-    </div>
-    </>
-  );
-};
-
-export default App;
+                          <p className="text-gray-
