@@ -173,7 +173,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUserRoleState('student');
     // Set default free tier values for guest
     setSubscriptionTier('free');
-    setCredits(0);
+    setCredits(50);
     setUsage({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 });
     setLessonLists([]);
     setQuizAttempts([]);

@@ -31,7 +31,7 @@ async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: 
     }
     return buffer;
 }
-function encode(bytes: Uint8Array) {
+function encode(bytes: Uint8Array): string {
   let binary = '';
   const len = bytes.byteLength;
   for (let i = 0; i < len; i++) {
@@ -63,22 +63,22 @@ const blobToBase64 = (blob: globalThis.Blob): Promise<string> => {
 };
 // #endregion
 
-type Transcription = { role: 'user' | 'model'; text: string; isFinal: boolean };
-type SessionStatus = 'idle' | 'listening' | 'speaking' | 'thinking';
+type Transcript = { id: number; role: 'user' | 'model'; text: string; isFinal: boolean };
+type SessionState = 'idle' | 'starting' | 'active' | 'ending';
+type AiStatus = 'listening' | 'thinking' | 'speaking';
 
 const VisualAssistant: React.FC = () => {
     const { canUseFeature, useFeature, setActiveTool, userRole } = useContext(AppContext);
     const { language } = useTranslations();
     const defaultTool = userRole === 'teacher' ? 'lessonPlanner' : 'homeworkHelper';
 
-    const [isSessionActive, setIsSessionActive] = useState(false);
-    const [isStarting, setIsStarting] = useState(false);
-    const [status, setStatus] = useState<SessionStatus>('idle');
+    const [sessionState, setSessionState] = useState<SessionState>('idle');
+    const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [limitError, setLimitError] = useState<string | null>(null);
     const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
-    const [transcriptionHistory, setTranscriptionHistory] = useState<Transcription[]>([]);
+    const [transcripts, setTranscripts] = useState<Transcript[]>([]);
 
     const sessionPromiseRef = useRef<Promise<any> | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -95,9 +95,22 @@ const VisualAssistant: React.FC = () => {
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [transcriptionHistory]);
+    }, [transcripts]);
+
+    useEffect(() => {
+        // This effect runs when the session becomes active and ensures the video stream is attached.
+        if (sessionState === 'active' && streamRef.current && videoRef.current) {
+            // Check if the stream is already set to avoid unnecessary re-assignments
+            if (videoRef.current.srcObject !== streamRef.current) {
+                videoRef.current.srcObject = streamRef.current;
+                // Attempt to play the video, catching any potential errors
+                videoRef.current.play().catch(e => console.error("Video playback failed:", e));
+            }
+        }
+    }, [sessionState]);
 
     const stopSession = useCallback(async (shouldNavigateBack = false) => {
+        setSessionState('ending');
         if (sessionPromiseRef.current) {
             try {
                 const session = await sessionPromiseRef.current;
@@ -115,19 +128,22 @@ const VisualAssistant: React.FC = () => {
 
         scriptProcessorRef.current?.disconnect();
         mediaStreamSourceRef.current?.disconnect();
-        inputAudioContextRef.current?.close().catch(console.error);
-        outputAudioContextRef.current?.close().catch(console.error);
+        if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'closed') {
+            inputAudioContextRef.current.close().catch(console.error);
+        }
+        if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'closed') {
+            outputAudioContextRef.current.close().catch(console.error);
+        }
 
         audioSourcesRef.current.forEach(source => source.stop());
         audioSourcesRef.current.clear();
 
-        setIsSessionActive(false);
-        setIsStarting(false);
-        setStatus('idle');
+        setAiStatus(null);
         setVideoDevices([]);
         setSelectedDeviceId('');
-        setTranscriptionHistory([]);
+        setTranscripts([]);
         nextStartTimeRef.current = 0;
+        setSessionState('idle');
         
         if (shouldNavigateBack) {
             setActiveTool(defaultTool as ToolKey);
@@ -135,12 +151,12 @@ const VisualAssistant: React.FC = () => {
     }, [setActiveTool, defaultTool]);
     
     const startSession = async () => {
-        setIsStarting(true);
+        setSessionState('starting');
         setError(null);
         setLimitError(null);
         if (!canUseFeature('visualAssistant')) {
             setLimitError("You don't have enough credits for this feature (10 required).");
-            setIsStarting(false);
+            setSessionState('idle');
             return;
         }
 
@@ -158,21 +174,16 @@ const VisualAssistant: React.FC = () => {
             const currentDeviceId = currentTrack.getSettings().deviceId;
             setSelectedDeviceId(currentDeviceId || (videoInputs.length > 0 ? videoInputs[0].deviceId : ''));
 
-            if (videoRef.current) {
-                 videoRef.current.srcObject = stream;
-                 videoRef.current.play().catch(e => console.error("Initial video play failed:", e));
-            }
-
             inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
             outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
             
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
-            const systemInstruction = `You are a helpful and interactive visual assistant. You will receive a continuous stream of images from a user's camera and their voice. Your goal is to have a natural, real-time conversation about what the user is seeing.
-- When the user asks a question, answer it based on the visual context.
-- If the user is quiet for a moment but the scene changes, you can proactively comment on what you see. For example, "That's an interesting painting," or "It looks like you're holding a book."
-- Keep your responses concise and conversational to maintain a low-latency feel.
-- All your spoken responses must be in ${language}.`;
+            const systemInstruction = `You are Sparky, a helpful and curious AI visual assistant from EduSpark. You are having a real-time conversation with a user through their camera and microphone. Your persona is enthusiastic and friendly.
+- **Be Proactive:** If the user is silent for a few moments but the scene changes, proactively and concisely comment on what you see. For example, "That's a beautiful flower," or "You're holding a textbook." This makes the conversation feel alive.
+- **Be Quick:** Keep your responses short and conversational to maintain a low-latency, real-time feel. Use direct language.
+- **Be Observant:** Your primary job is to answer the user's questions based on the visual information from the camera feed.
+- **Language:** All your spoken responses must be in ${language}.`;
 
             sessionPromiseRef.current = ai.live.connect({
                 model: 'gemini-2.5-flash-native-audio-preview-09-2025',
@@ -184,7 +195,7 @@ const VisualAssistant: React.FC = () => {
                 },
                 callbacks: {
                     onopen: () => {
-                        setStatus('listening');
+                        setAiStatus('listening');
                         const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
                         mediaStreamSourceRef.current = source;
                         const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
@@ -201,45 +212,46 @@ const VisualAssistant: React.FC = () => {
                         scriptProcessor.connect(inputAudioContextRef.current!.destination);
                     },
                     onmessage: async (message: LiveServerMessage) => {
-                        if (message.serverContent?.inputTranscription) {
-                            setStatus('listening');
+                         if (message.serverContent?.inputTranscription) {
+                            setAiStatus('listening');
                             const { text, isFinal } = message.serverContent.inputTranscription;
-                             setTranscriptionHistory(prev => {
+                             setTranscripts(prev => {
                                 const last = prev[prev.length - 1];
                                 if (last?.role === 'user' && !last.isFinal) {
                                     const updatedLast = { ...last, text: last.text + text, isFinal: isFinal ?? false };
                                     return [...prev.slice(0, -1), updatedLast];
                                 } else if (text.trim()) {
-                                    return [...prev, { role: 'user', text, isFinal: isFinal ?? false }];
+                                    return [...prev, { id: Date.now(), role: 'user', text, isFinal: isFinal ?? false }];
                                 }
                                 return prev;
                             });
-                            if (isFinal) setStatus('thinking');
+                            if (isFinal) setAiStatus('thinking');
                         }
                 
                         if (message.serverContent?.outputTranscription) {
-                             setStatus('speaking');
+                             setAiStatus('speaking');
                              const { text, isFinal } = message.serverContent.outputTranscription;
-                             setTranscriptionHistory(prev => {
+                             setTranscripts(prev => {
                                 const last = prev[prev.length - 1];
                                 if (last?.role === 'model' && !last.isFinal) {
                                      const updatedLast = { ...last, text: last.text + text, isFinal: isFinal ?? false };
                                     return [...prev.slice(0, -1), updatedLast];
                                 } else if (text.trim()) {
-                                    return [...prev, { role: 'model', text, isFinal: isFinal ?? false }];
+                                    return [...prev, { id: Date.now(), role: 'model', text, isFinal: isFinal ?? false }];
                                 }
                                 return prev;
                             });
                         }
 
                         if (message.serverContent?.turnComplete) {
-                            setStatus('listening');
+                            setAiStatus('listening');
                         }
 
-                        const base64EncodedAudioString = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-                        if (base64EncodedAudioString && outputAudioContextRef.current) {
-                            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputAudioContextRef.current.currentTime);
-                            const audioBuffer = await decodeAudioData(decode(base64EncodedAudioString), outputAudioContextRef.current, 24000, 1);
+                        const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+                        if (base64Audio && outputAudioContextRef.current) {
+                            const currentTime = outputAudioContextRef.current.currentTime;
+                            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, currentTime);
+                            const audioBuffer = await decodeAudioData(decode(base64Audio), outputAudioContextRef.current, 24000, 1);
                             const source = outputAudioContextRef.current.createBufferSource();
                             source.buffer = audioBuffer;
                             source.connect(outputAudioContextRef.current.destination);
@@ -249,12 +261,8 @@ const VisualAssistant: React.FC = () => {
                             audioSourcesRef.current.add(source);
                         }
                         
-                        const interrupted = message.serverContent?.interrupted;
-                        if (interrupted) {
-                            audioSourcesRef.current.forEach(source => {
-                                source.stop();
-                                audioSourcesRef.current.delete(source);
-                            });
+                        if (message.serverContent?.interrupted) {
+                            audioSourcesRef.current.forEach(source => { source.stop(); audioSourcesRef.current.delete(source); });
                             nextStartTimeRef.current = 0;
                         }
                     },
@@ -264,7 +272,6 @@ const VisualAssistant: React.FC = () => {
                         stopSession();
                     },
                     onclose: (e: CloseEvent) => {
-                        console.log("Session closed:", e);
                         stopSession();
                     },
                 }
@@ -272,13 +279,12 @@ const VisualAssistant: React.FC = () => {
             
             await sessionPromiseRef.current;
             useFeature('visualAssistant');
-            setIsSessionActive(true);
+            setSessionState('active');
 
             if (canvasRef.current && videoRef.current) {
                 const canvasEl = canvasRef.current;
                 const videoEl = videoRef.current;
                 const ctx = canvasEl.getContext('2d');
-    
                 if (ctx) {
                     frameIntervalRef.current = window.setInterval(() => {
                         canvasEl.width = videoEl.videoWidth;
@@ -289,23 +295,18 @@ const VisualAssistant: React.FC = () => {
                                 if (blob) {
                                     const base64Data = await blobToBase64(blob);
                                     sessionPromiseRef.current?.then((session) => {
-                                      session.sendRealtimeInput({
-                                        media: { data: base64Data, mimeType: 'image/jpeg' }
-                                      });
+                                      session.sendRealtimeInput({ media: { data: base64Data, mimeType: 'image/jpeg' } });
                                     });
                                 }
-                            },
-                            'image/jpeg', 0.8 
+                            }, 'image/jpeg', 0.8 
                         );
-                    }, 1000 / 2); 
+                    }, 250); // 4 FPS for better responsiveness
                 }
             }
         } catch (e: any) {
             console.error("Failed to start session:", e);
             setError(`Could not start session: ${e.message}`);
             stopSession();
-        } finally {
-            setIsStarting(false);
         }
     };
 
@@ -321,136 +322,120 @@ const VisualAssistant: React.FC = () => {
 
     useEffect(() => {
         const changeStream = async () => {
-            if (isSessionActive && selectedDeviceId && streamRef.current) {
+            if (sessionState === 'active' && selectedDeviceId && streamRef.current) {
                 const oldTrack = streamRef.current.getVideoTracks()[0];
-                
-                // Do nothing if we are already on the selected device.
-                if (oldTrack && oldTrack.getSettings().deviceId === selectedDeviceId) {
-                    return;
-                }
-
-                // Stop and remove the old track from the stream.
-                if (oldTrack) {
-                    oldTrack.stop();
-                    streamRef.current.removeTrack(oldTrack);
-                }
+                if (oldTrack && oldTrack.getSettings().deviceId === selectedDeviceId) return;
+                if (oldTrack) { oldTrack.stop(); streamRef.current.removeTrack(oldTrack); }
 
                 try {
-                    // Get a new stream with the selected video device.
                     const newStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: selectedDeviceId } } });
                     const newVideoTrack = newStream.getVideoTracks()[0];
-                    
-                    // Add the new video track to our main stream.
                     streamRef.current.addTrack(newVideoTrack);
-
-                    // Re-assigning the srcObject ensures the video element updates.
                     if (videoRef.current) {
                         videoRef.current.srcObject = streamRef.current;
                         videoRef.current.play().catch(e => console.error("Camera switch video play failed:", e));
                     }
                 } catch(e) {
                     console.error("Error switching camera:", e);
-                    setError("Could not switch camera. Please check permissions.");
+                    setError("Could not switch camera.");
                 }
             }
         };
-        
-        // Trigger the change only when a device is selected.
-        if(selectedDeviceId) {
-            changeStream();
-        }
-    }, [selectedDeviceId, isSessionActive]);
-
+        if(selectedDeviceId) { changeStream(); }
+    }, [selectedDeviceId, sessionState]);
 
     useEffect(() => { return () => { stopSession(); }; }, [stopSession]);
     
-    const StatusIndicator: React.FC = () => {
-        let text, color, animate;
-        switch(status) {
-            case 'listening': text = 'Listening...'; color = 'bg-green-500'; animate = true; break;
-            case 'speaking': text = 'Speaking...'; color = 'bg-blue-500'; animate = true; break;
-            case 'thinking': text = 'Thinking...'; color = 'bg-yellow-500'; animate = true; break;
-            default: text = 'Idle'; color = 'bg-gray-500'; animate = false; break;
+    const AiStatusIndicator: React.FC = () => {
+        let text;
+        let pulseColor;
+        switch(aiStatus) {
+            case 'listening': text = 'Listening...'; pulseColor = 'bg-green-500'; break;
+            case 'speaking': text = 'Speaking...'; pulseColor = 'bg-blue-500'; break;
+            case 'thinking': text = 'Thinking...'; pulseColor = 'bg-yellow-500'; break;
+            default: return null;
         }
         return (
-            <div className="flex items-center space-x-2">
-                <span className={`relative flex h-3 w-3`}>
-                    <span className={`${color} rounded-full h-full w-full`}></span>
-                    {animate && <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${color} opacity-75`}></span>}
+            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex items-center space-x-2 p-2 px-4 rounded-full bg-black/40 backdrop-blur-md transition-opacity duration-300">
+                <span className="relative flex h-3 w-3">
+                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${pulseColor} opacity-75`}></span>
+                    <span className={`relative inline-flex rounded-full h-3 w-3 ${pulseColor}`}></span>
                 </span>
-                <span className="text-sm text-gray-300">{text}</span>
+                <span className="text-sm font-medium">{text}</span>
             </div>
         )
     };
 
+    const PreSessionScreen = () => (
+        <div className="h-full w-full bg-slate-900 text-white flex flex-col items-center justify-center p-4 text-center">
+             {limitError ? (
+                <UpgradePrompt message={limitError} />
+             ) : (
+                <>
+                    <Logo className="w-20 h-20 text-indigo-400 mb-6"/>
+                    <h1 className="text-4xl font-bold mb-4">Visual Assistant</h1>
+                    <p className="mb-8 text-gray-300 max-w-md mx-auto">Start a live conversation with AI. Point your camera at something and ask questions in real-time.</p>
+                    <Button onClick={startSession} isLoading={sessionState === 'starting'} className="px-8 py-4 text-lg">
+                        {sessionState === 'starting' ? 'Preparing Camera...' : 'Start Visual Session'}
+                    </Button>
+                    {error && <p className="mt-4 text-red-400">{error}</p>}
+                </>
+             )}
+             {/* Render back button if not in the middle of starting a session */}
+             {sessionState !== 'starting' && (
+                <button 
+                    onClick={() => setActiveTool(defaultTool as ToolKey)} 
+                    className="mt-8 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                >
+                   &larr; Go Back to Dashboard
+                </button>
+             )}
+        </div>
+    );
+    
+    if (sessionState !== 'active') return <PreSessionScreen />;
+
     return (
-        <div className="relative h-full w-full bg-slate-900 text-white flex flex-col md:flex-row overflow-hidden">
+        <div className="relative h-full w-full bg-black">
             <canvas ref={canvasRef} className="hidden" />
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
 
-            {limitError && (
-                <div className="absolute inset-0 z-30 bg-black/50 flex items-center justify-center p-4">
-                    <UpgradePrompt message={limitError} />
-                </div>
-            )}
-
-            {/* Video Container */}
-            <div className="relative flex-1 bg-black flex items-center justify-center group">
-                {!isSessionActive ? (
-                    <div className="text-center p-4 flex flex-col items-center justify-center h-full">
-                        <Logo className="w-16 h-16 text-indigo-400 mb-4"/>
-                        <h1 className="text-2xl font-bold mb-4">Visual Assistant</h1>
-                        <p className="mb-8 text-gray-300 max-w-md mx-auto">Start a live conversation. Point your camera at something and ask a question.</p>
-                        <Button onClick={startSession} isLoading={isStarting} disabled={!!limitError}>
-                            {isStarting ? 'Requesting Permissions...' : 'Start Session'}
-                        </Button>
-                        {error && !limitError && <p className="mt-4 text-red-400">{error}</p>}
-                    </div>
-                ) : (
-                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                )}
-
-                {isSessionActive && (
-                    <div className="absolute top-4 left-4 right-4 z-20 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-                         <button onClick={() => stopSession(true)} className="p-2 bg-black/40 rounded-full hover:bg-black/60 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            {/* UI Overlays */}
+            <div className="fixed inset-0 flex flex-col justify-between p-4 md:p-6 pointer-events-none">
+                {/* Header */}
+                <header className="flex justify-between items-center w-full">
+                    <button onClick={() => stopSession(true)} className="p-3 bg-black/40 backdrop-blur-md rounded-full hover:bg-black/60 transition-colors pointer-events-auto">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    {videoDevices.length > 1 && (
+                        <button onClick={switchCamera} className="p-3 bg-black/40 backdrop-blur-md rounded-full hover:bg-black/60 transition-colors pointer-events-auto">
+                            <SwitchCameraIcon className="w-6 h-6"/>
                         </button>
-                        <div className="flex space-x-2">
-                            {videoDevices.length > 1 && (
-                                <button onClick={switchCamera} className="p-2 bg-black/40 rounded-full hover:bg-black/60 transition-colors">
-                                    <SwitchCameraIcon />
-                                </button>
-                            )}
-                             <button onClick={() => stopSession(false)} className="px-4 py-2 bg-red-600/80 rounded-full hover:bg-red-700 transition-colors flex items-center space-x-2">
-                                <MicrophoneIcon className="w-5 h-5"/><span>End</span>
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Chat/Transcription Container */}
-            <div className={`md:w-1/3 md:max-w-md bg-slate-800 flex flex-col h-2/5 md:h-full transition-all duration-300 ${!isSessionActive && 'hidden md:flex'}`}>
-                <div className="p-4 border-b border-slate-700 flex justify-between items-center">
-                    <h2 className="text-lg font-bold">Conversation</h2>
-                    {isSessionActive && <StatusIndicator />}
-                </div>
-                <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                     {transcriptionHistory.length === 0 && (
-                        <div className="text-center text-slate-400 h-full flex flex-col justify-center items-center">
-                           <p className="max-w-xs">{isSessionActive ? 'Start talking to see the conversation here.' : 'Start a session to begin the conversation.'}</p>
-                        </div>
                     )}
-                    {transcriptionHistory.map((item, index) => (
-                         <div key={index} className={`flex items-start gap-3 ${item.role === 'user' ? 'justify-end' : ''}`}>
-                            {item.role === 'model' && <div className="p-2 bg-slate-700 rounded-full flex-shrink-0"><Logo className="w-5 h-5 text-indigo-400" /></div>}
-                            <div className={`p-3 rounded-2xl max-w-[85%] break-words text-white ${item.role === 'user' ? 'bg-indigo-600 rounded-br-none' : 'bg-slate-700 rounded-bl-none'}`}>
-                                <span className={!item.isFinal ? 'opacity-70' : ''}>{item.text}</span>
+                </header>
+
+                {/* Transcripts */}
+                <div className="absolute inset-x-0 bottom-24 p-4 space-y-4 overflow-y-auto max-h-[50vh] [mask-image:linear-gradient(to_bottom,transparent,black_20%)]">
+                     {transcripts.map(item => (
+                         <div key={item.id} className={`flex items-start gap-3 w-full animate-fade-in-up ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            {item.role === 'model' && <div className="p-2 bg-slate-700/80 rounded-full flex-shrink-0 backdrop-blur-md"><Logo className="w-5 h-5 text-indigo-400" /></div>}
+                            <div className={`p-3 rounded-2xl max-w-sm break-words text-white shadow-lg backdrop-blur-md ${item.role === 'user' ? 'bg-indigo-600/90 rounded-br-none' : 'bg-slate-700/80 rounded-bl-none'}`}>
+                                <p className={!item.isFinal ? 'opacity-70' : ''}>{item.text}</p>
                             </div>
-                            {item.role === 'user' && <div className="p-2 bg-slate-700 rounded-full flex-shrink-0"><UserIcon className="w-5 h-5 text-slate-300" /></div>}
+                            {item.role === 'user' && <div className="p-2 bg-slate-700/80 rounded-full flex-shrink-0 backdrop-blur-md"><UserIcon className="w-5 h-5 text-slate-300" /></div>}
                         </div>
                     ))}
                     <div ref={chatEndRef} />
                 </div>
+                
+                {/* Footer */}
+                <footer className="w-full flex justify-center items-center flex-col">
+                    <AiStatusIndicator />
+                    <button onClick={() => stopSession(false)} className="px-6 py-4 bg-red-600/80 rounded-full hover:bg-red-700 transition-colors flex items-center space-x-3 pointer-events-auto backdrop-blur-md shadow-2xl">
+                        <MicrophoneIcon className="w-6 h-6"/>
+                        <span className="font-bold text-lg">End Session</span>
+                    </button>
+                </footer>
             </div>
         </div>
     );

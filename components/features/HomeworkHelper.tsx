@@ -66,7 +66,9 @@ const HomeworkHelper: React.FC = () => {
     audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
     return () => {
       audioSourceRef.current?.stop();
-      audioContextRef.current?.close();
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().catch(console.error);
+      }
     };
   }, []);
 
