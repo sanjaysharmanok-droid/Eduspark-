@@ -6,7 +6,7 @@ import Button from '../common/Button';
 import { Language, Theme } from '../../types';
 import Select from '../common/Select';
 import { ToolKey } from '../../constants';
-import { ChevronRightIcon } from '../icons';
+import { ChevronRightIcon, ShieldCheckIcon } from '../icons';
 
 const Settings: React.FC = () => {
   const { 
@@ -16,7 +16,9 @@ const Settings: React.FC = () => {
     setUserRole,
     language,
     setLanguage,
-    setActiveTool
+    setActiveTool,
+    isAdmin,
+    setAdminViewMode
   } = useContext(AppContext);
   const { t } = useTranslations();
 
@@ -99,6 +101,25 @@ const Settings: React.FC = () => {
         </div>
       </Card>
       
+      {isAdmin && (
+        <Card title="Administrator Tools">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center space-x-4 mb-4 sm:mb-0">
+                    <div className="bg-slate-100 dark:bg-white/10 p-3 rounded-xl flex-shrink-0">
+                        <ShieldCheckIcon className="h-8 w-8 text-slate-600 dark:text-slate-300" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Admin Panel Access</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Manage users, subscriptions, and app settings.</p>
+                    </div>
+                </div>
+                <Button onClick={() => setAdminViewMode('admin')} className="w-full sm:w-auto mt-4 sm:mt-0">
+                    Access Admin Panel
+                </Button>
+            </div>
+        </Card>
+      )}
+
       <Card title="Information & Support">
           <div className="divide-y divide-gray-200 dark:divide-white/10">
               {infoLinks.map(link => (
