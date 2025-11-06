@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole } from './types';
-import { BookOpenIcon, SparklesIcon, BeakerIcon, ClipboardDocumentListIcon, LightBulbIcon, PresentationChartBarIcon, AcademicCapIcon, CameraIcon, SettingsIcon, LibraryIcon, ReportIcon, InformationCircleIcon, DocumentTextIcon, MailIcon, RefreshIcon, CreditCardIcon } from './components/icons';
+import { BookOpenIcon, SparklesIcon, BeakerIcon, ClipboardDocumentListIcon, LightBulbIcon, PresentationChartBarIcon, AcademicCapIcon, CameraIcon, SettingsIcon, LibraryIcon, ReportIcon, InformationCircleIcon, DocumentTextIcon, MailIcon, RefreshIcon, CreditCardIcon, ShieldCheckIcon } from './components/icons';
 
 export const TOOLS: Record<string, ToolConfig> = {
   // Student Tools
@@ -127,6 +127,13 @@ export const TOOLS: Record<string, ToolConfig> = {
     role: 'student', // Role is nominal; visibility is handled in Sidebar for all users
   },
   
+  adminPanel: {
+    nameKey: 'adminPanel_name',
+    descriptionKey: 'adminPanel_desc',
+    icon: <ShieldCheckIcon />,
+    role: 'teacher', // Role is nominal; only visible to admins
+  },
+
   // Static Pages (for routing)
   about: {
     nameKey: 'about_name',

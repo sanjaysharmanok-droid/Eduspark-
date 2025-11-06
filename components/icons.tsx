@@ -69,6 +69,12 @@ export const SettingsIcon: React.FC<{className?: string}> = ({className = "h-6 w
     </svg>
 );
 
+export const ShieldCheckIcon: React.FC<{className?: string}> = ({className = "h-6 w-6"}) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 20.944A12.02 12.02 0 0012 23v-4.057a8.963 8.963 0 01-4.418-2.575a8.963 8.963 0 01-2.575-4.418A8.963 8.963 0 015 9.057a8.963 8.963 0 012.575-4.418A8.963 8.963 0 0112 2.057a8.963 8.963 0 014.418 2.575a8.963 8.963 0 012.575 4.418A8.963 8.963 0 0119 14.943V23a12.02 12.02 0 009-8.056A12.02 12.02 0 0021.618 7.984z" />
+    </svg>
+);
+
 export const ChevronDoubleLeftIcon: React.FC<{className?: string}> = ({className = "h-6 w-6"}) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />

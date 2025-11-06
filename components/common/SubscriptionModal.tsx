@@ -59,7 +59,7 @@ const TierCard: React.FC<{
 };
 
 const SubscriptionModal: React.FC = () => {
-    const { isSubscriptionModalOpen, setIsSubscriptionModalOpen, subscriptionTier, firebaseUser, user, language } = useContext(AppContext);
+    const { isSubscriptionModalOpen, setIsSubscriptionModalOpen, subscriptionTier, firebaseUser, user, language, appConfig } = useContext(AppContext);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -99,7 +99,7 @@ const SubscriptionModal: React.FC = () => {
             ],
         },
         silver: {
-            price: '₹499/mo',
+            price: appConfig?.planPrices.silver || '₹499/mo',
             description: 'For dedicated students & teachers',
             features: [
                 { text: 'Unlimited Topic Searches', included: true },
@@ -112,7 +112,7 @@ const SubscriptionModal: React.FC = () => {
             ],
         },
         gold: {
-            price: '₹999/mo',
+            price: appConfig?.planPrices.gold || '₹999/mo',
             description: 'For power users & professionals',
             features: [
                 { text: 'All Silver features, plus:', included: true },

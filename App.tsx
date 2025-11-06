@@ -28,6 +28,7 @@ const PrivacyPolicyPage = React.lazy(() => import('./components/features/Privacy
 const TermsAndConditionsPage = React.lazy(() => import('./components/features/TermsAndConditionsPage'));
 const ContactUsPage = React.lazy(() => import('./components/features/ContactUsPage'));
 const RefundPolicyPage = React.lazy(() => import('./components/features/RefundPolicyPage'));
+const AdminPanel = React.lazy(() => import('./components/features/AdminPanel'));
 
 const useMediaQuery = (query: string) => {
     const [matches, setMatches] = useState(false);
@@ -80,6 +81,7 @@ const App: React.FC = () => {
       case 'termsAndConditions': return <TermsAndConditionsPage />;
       case 'contactUs': return <ContactUsPage />;
       case 'refundPolicy': return <RefundPolicyPage />;
+      case 'adminPanel': return <AdminPanel />;
       default: return <LessonPlanner />;
     }
   }, [activeTool]);

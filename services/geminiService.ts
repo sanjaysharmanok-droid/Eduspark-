@@ -7,6 +7,29 @@ const cache = new Map<string, any>();
 // Use a single, top-level instance of the GoogleGenAI class for efficiency and stability.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+// Centralized, dynamic model configuration
+let modelConfig = {
+    lessonPlanner: 'gemini-2.5-pro',
+    homeworkHelper: 'gemini-2.5-flash-lite',
+    topicExplorer: 'gemini-2.5-flash',
+    presentationGenerator: 'gemini-2.5-pro',
+    quizGenerator: 'gemini-2.5-flash',
+    summarizer: 'gemini-2.5-flash',
+    factFinder: 'gemini-2.5-flash',
+    activityGenerator: 'gemini-2.5-flash-lite',
+    reportCardHelper: 'gemini-2.5-flash',
+    visualAssistant: 'gemini-2.5-flash',
+    imageGeneration: 'gemini-2.5-flash-image',
+    tts: 'gemini-2.5-flash-preview-tts',
+};
+
+export const updateModelConfig = (newConfig: typeof modelConfig) => {
+    if (newConfig) {
+        modelConfig = { ...modelConfig, ...newConfig };
+        console.log("AI Model configuration updated:", modelConfig);
+    }
+};
+
 const languageMap: Record<Language, string> = {
     en: 'English',
     hi: 'Hindi, using the Devanagari script (for example: "नमस्ते")',
@@ -62,7 +85,7 @@ export const getDetailedFactsResponse = async (topic: string, count: number, lan
     Each object in the "facts" array must have two keys: "fact" (a string) and "detail" (a string).`;
 
     const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: modelConfig.factFinder || 'gemini-2.5-flash',
         contents: prompt,
         config: {
             responseMimeType: "application/json",
@@ -112,7 +135,7 @@ export const getTopicExplanationWithImage = async (topic: string, language: Lang
     2. "imagePrompt": A concise, descriptive English prompt for an AI image generator to create a relevant, visually appealing image for this topic.`;
 
     const textResponse: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: modelConfig.topicExplorer || 'gemini-2.5-flash',
         contents: prompt,
         config: {
             responseMimeType: "application/json",
@@ -134,7 +157,7 @@ export const getTopicExplanationWithImage = async (topic: string, language: Lang
     if (imagePrompt) {
         try {
             const imageResponse: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
-                model: 'gemini-2.5-flash-image',
+                model: modelConfig.imageGeneration || 'gemini-2.5-flash-image',
                 contents: { parts: [{ text: imagePrompt }] },
                 config: { responseModalities: [Modality.IMAGE] },
             }));
@@ -163,7 +186,7 @@ export const generateLessonPlan = async (topic: string, grade: string, duration:
   const prompt = `Generate a detailed lesson plan for a '${grade}' class on the topic of '${topic}'. The lesson should be designed for a duration of '${duration}'. The output should be a JSON object, with all text content in ${languageMap[language]}.`;
   
   const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
-    model: 'gemini-2.5-pro',
+    model: modelConfig.lessonPlanner || 'gemini-2.5-pro',
     contents: prompt,
     config: {
       thinkingConfig: { thinkingBudget: 32768 },
@@ -210,7 +233,7 @@ export const getSimpleResponse = async (prompt: string, language: Language): Pro
 
     const fullPrompt = `${prompt} \n\nRespond in ${languageMap[language]}. ${markdownFixPrompt(language)}`;
     const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
-        model: 'gemini-2.5-flash-lite',
+        model: modelConfig.activityGenerator || 'gemini-2.5-flash-lite',
         contents: fullPrompt,
     }));
 
@@ -220,7 +243,7 @@ export const getSimpleResponse = async (prompt: string, language: Language): Pro
 };
 
 export const getSmartResponse = async (prompt: string, imageBase64: string | null, useThinkingMode: boolean, language: Language): Promise<string> => {
-    const model = useThinkingMode ? 'gemini-2.5-pro' : (imageBase64 ? 'gemini-2.5-flash' : 'gemini-2.5-flash-lite');
+    const model = useThinkingMode ? 'gemini-2.5-pro' : (imageBase64 ? (modelConfig.visualAssistant || 'gemini-2.5-flash') : (modelConfig.homeworkHelper || 'gemini-2.5-flash-lite'));
     const fullPrompt = `${prompt} \n\nRespond in ${languageMap[language]}. ${markdownFixPrompt(language)}`;
     const parts: any[] = [{ text: fullPrompt }];
 
@@ -240,7 +263,7 @@ export const getSmartResponse = async (prompt: string, imageBase64: string | nul
 
 export const generateSpeech = async (text: string): Promise<string> => {
     const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
+        model: modelConfig.tts || "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text }] }],
         config: {
             responseModalities: [Modality.AUDIO],
@@ -269,7 +292,7 @@ export const generateVisualPresentation = async (topic: string, numSlides: numbe
     The output must be a single JSON object.`;
 
     const textResponse: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: modelConfig.presentationGenerator || 'gemini-2.5-pro',
         contents: textGenPrompt,
         config: {
             responseMimeType: "application/json",
@@ -302,7 +325,7 @@ export const generateVisualPresentation = async (topic: string, numSlides: numbe
     for (const slide of presentationOutline.slides) {
         try {
             const imageResponse: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
-                model: 'gemini-2.5-flash-image',
+                model: modelConfig.imageGeneration || 'gemini-2.5-flash-image',
                 contents: { parts: [{ text: slide.imagePrompt }] },
                 config: { responseModalities: [Modality.IMAGE] },
             }));
@@ -329,7 +352,7 @@ export const generateQuiz = async (topic: string, numQuestions: number, difficul
     const prompt = `Generate a quiz with ${numQuestions} questions on the topic of '${topic}' for a ${difficulty} level. The output must be a JSON object, with all text content in ${languageMap[language]}. Each question must have exactly 4 options and one correct answer.`;
     
     const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: modelConfig.quizGenerator || 'gemini-2.5-flash',
         contents: prompt,
         config: {
             responseMimeType: "application/json",
@@ -376,7 +399,7 @@ export const generateSummary = async (text: string, style: 'bullets' | 'paragrap
     `;
 
     const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: modelConfig.summarizer || 'gemini-2.5-flash',
         contents: prompt,
     }));
 
@@ -397,7 +420,7 @@ export const getLiveResponse = async (prompt: string, imageBase64: string, langu
     ];
 
     const response: GenerateContentResponse = await withRetry(() => ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: modelConfig.visualAssistant || 'gemini-2.5-flash',
         contents: { parts },
     }));
     return response.text;

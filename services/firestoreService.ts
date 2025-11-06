@@ -41,6 +41,7 @@ export const createUserProfileDocument = async (firebaseUser: FirebaseUser, addi
         activities: 0,
         summaries: 0,
       },
+      isAdmin: false, // Default to not admin
       ...additionalData
     };
 
@@ -105,4 +106,58 @@ export const addQuizAttempt = async (uid: string, attempt: Omit<QuizAttempt, 'id
     const newAttempt = { ...attempt, date: new Date().toISOString() };
     const docRef = await addDoc(attemptsRef, newAttempt);
     return { id: docRef.id, ...newAttempt };
+};
+
+// --- Admin Panel Functions ---
+
+export const getIsAdmin = async (uid: string): Promise<boolean> => {
+    const userData = await getUserData(uid);
+    return userData?.isAdmin === true;
+};
+
+export const getAllUsers = async (): Promise<(User & { uid: string; subscription: any; settings: any; createdAt: any })[]> => {
+    const usersRef = collection(db, "users");
+    const snapshot = await getDocs(usersRef);
+    return snapshot.docs.map(doc => ({
+        uid: doc.id,
+        name: doc.data().profile.name,
+        email: doc.data().profile.email,
+        picture: doc.data().profile.picture,
+        subscription: doc.data().subscription,
+        settings: doc.data().settings,
+        createdAt: doc.data().profile.createdAt.toDate(), // Convert Firestore timestamp to Date
+    }));
+};
+
+export const getAppConfig = async (): Promise<any> => {
+    const configRef = doc(db, 'app-config/global');
+    const snapshot = await getDoc(configRef);
+    if (snapshot.exists()) {
+        return snapshot.data();
+    }
+    // Return default config if it doesn't exist
+    return {
+        planPrices: { silver: '₹499/mo', gold: '₹999/mo' },
+        aiModels: {
+            lessonPlanner: 'gemini-2.5-pro',
+            homeworkHelper: 'gemini-2.5-flash-lite',
+            topicExplorer: 'gemini-2.5-flash',
+            presentationGenerator: 'gemini-2.5-pro',
+            quizGenerator: 'gemini-2.5-flash',
+            summarizer: 'gemini-2.5-flash',
+            factFinder: 'gemini-2.5-flash',
+            activityGenerator: 'gemini-2.5-flash-lite',
+            reportCardHelper: 'gemini-2.5-flash',
+            visualAssistant: 'gemini-2.5-flash',
+        },
+    };
+};
+
+export const updateAppConfig = async (data: object) => {
+    const configRef = doc(db, 'app-config/global');
+    try {
+        await setDoc(configRef, data, { merge: true });
+    } catch (error) {
+        console.error("Error updating app config:", error);
+    }
 };

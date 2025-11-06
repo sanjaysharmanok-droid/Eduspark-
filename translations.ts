@@ -14,6 +14,7 @@ export const translations = {
   factFinder_name: { en: 'Fact Finder', hi: 'तथ्य खोजक', es: 'Buscador de Hechos', fr: 'Chercheur de Faits' },
   summarizer_name: { en: 'Summarizer', hi: 'सारांशक', es: 'Resumidor', fr: 'Résumeur' },
   planInformation_name: { en: 'Plan & Usage', hi: 'योजना और उपयोग', es: 'Plan y Uso', fr: 'Forfait et Utilisation' },
+  adminPanel_name: { en: 'Admin Panel', hi: 'एडमिन पैनल', es: 'Panel de Admin', fr: 'Panneau Admin' },
 
   // Tool Descriptions
   homeworkHelper_desc: { en: 'Get help with tough questions and understand complex subjects.', hi: 'कठिन प्रश्नों में सहायता प्राप्त करें और जटिल विषयों को समझें।', es: 'Obtén ayuda con preguntas difíciles y comprende temas complejos.', fr: 'Obtenez de l\'aide pour les questions difficiles et comprenez des sujets complexes.' },
@@ -32,6 +33,7 @@ export const translations = {
   summarizer_desc: { en: 'Summarize long texts into key points or paragraphs.', hi: 'लंबे पाठों को मुख्य बिंदुओं या पैराग्राफ में सारांशित करें।', es: 'Resume textos largos en puntos clave o párrafos.', fr: 'Résumez de longs textes en points clés ou en paragraphes.' },
   summarizer_desc_teacher: { en: 'Quickly summarize articles or documents for lesson materials.', hi: 'पाठ सामग्री के लिए लेखों या दस्तावेजों को शीघ्रता से सारांशित करें।', es: 'Resume rápidamente artículos o documentos para material didáctico.', fr: 'Résumez rapidement des articles ou des documents pour le matériel de cours.' },
   planInformation_desc: { en: 'View your current plan, credits, and daily usage.', hi: 'अपनी वर्तमान योजना, क्रेडिट और दैनिक उपयोग देखें।', es: 'Vea su plan actual, créditos y uso diario.', fr: 'Consultez votre forfait actuel, vos crédits et votre utilisation quotidienne.' },
+  adminPanel_desc: { en: 'Manage users, settings, and application data.', hi: 'उपयोगकर्ताओं, सेटिंग्स और एप्लिकेशन डेटा को प्रबंधित करें।', es: 'Gestionar usuarios, configuraciones y datos de la aplicación.', fr: 'Gérez les utilisateurs, les paramètres et les données de l\'application.' },
 
 
   // Categories

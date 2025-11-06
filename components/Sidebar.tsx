@@ -13,16 +13,18 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTool, setActiveTool, isSidebarCollapsed, setIsSidebarCollapsed }) => {
-  const { userRole, setIsSubscriptionModalOpen } = useContext(AppContext);
+  const { userRole, setIsSubscriptionModalOpen, isAdmin } = useContext(AppContext);
   const { t } = useTranslations();
 
   const mainTools = Object.entries(TOOLS)
-    .filter(([key]) => !['settings', 'planInformation'].includes(key) && !TOOLS[key as ToolKey].nameKey.includes('desc')) // Filter out static pages
+    .filter(([key]) => !['settings', 'planInformation', 'adminPanel'].includes(key) && !TOOLS[key as ToolKey].nameKey.includes('desc')) // Filter out static/admin pages
     .filter(([, config]) => config.role === userRole)
     .map(([key, config]) => ({ key: key as ToolKey, ...config }));
 
   const settingsTool = TOOLS['settings'] ? { key: 'settings' as ToolKey, ...TOOLS['settings'] } : null;
   const planTool = TOOLS['planInformation'] ? { key: 'planInformation' as ToolKey, ...TOOLS['planInformation'] } : null;
+  const adminTool = isAdmin && TOOLS['adminPanel'] ? { key: 'adminPanel' as ToolKey, ...TOOLS['adminPanel'] } : null;
+
 
   const getToolItemClasses = (toolKey: ToolKey) => {
     const isActive = activeTool === toolKey;
@@ -87,6 +89,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, setActiveTool, isSidebarC
                 {!isSidebarCollapsed && <span className="text-sm font-bold">Upgrade Plan</span>}
             </button>
          </div>
+         {adminTool && (
+           <div>
+              <button
+                onClick={() => setActiveTool(adminTool.key)}
+                title={isSidebarCollapsed ? t(adminTool.nameKey) : ''}
+                className={getToolItemClasses(adminTool.key)}
+              >
+                <span className={getIconClasses(adminTool.key)}>{adminTool.icon}</span>
+                {!isSidebarCollapsed && <span className={getTextClasses(adminTool.key)}>{t(adminTool.nameKey)}</span>}
+              </button>
+           </div>
+        )}
          {planTool && (
            <div>
               <button

@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut as firebaseSignOut, FirebaseUser } from '..
 import { auth } from '../services/firebase';
 import { ToolKey } from '../constants';
 import * as firestoreService from '../services/firestoreService';
+import { updateModelConfig } from '../services/geminiService';
 
 const VISUAL_ASSISTANT_COST = 10;
 const DAILY_LIMITS = {
@@ -18,9 +19,19 @@ const DAILY_LIMITS = {
   activities: 3,
 };
 
+interface AppConfig {
+    planPrices: {
+        silver: string;
+        gold: string;
+    };
+    aiModels: {
+        [key: string]: string;
+    };
+}
+
 interface AppContextType {
   user: User | null;
-  firebaseUser: FirebaseUser | null; // <-- Added this
+  firebaseUser: FirebaseUser | null;
   signOut: () => Promise<void>;
   userRole: UserRole | null;
   setUserRole: (role: UserRole | null) => void;
@@ -46,6 +57,9 @@ interface AppContextType {
   canUseFeature: (feature: keyof Omit<Usage, 'date'> | 'visualAssistant', amount?: number) => boolean;
   useFeature: (feature: keyof Omit<Usage, 'date'> | 'visualAssistant', amount?: number) => void;
   startGuestSession: () => void;
+  // Admin properties
+  isAdmin: boolean;
+  appConfig: AppConfig | null;
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -70,6 +84,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [credits, setCredits] = useState<number>(0);
   const [usage, setUsage] = useState<Usage>({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 });
 
+  // Admin State
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
+
   const defaultTool = useMemo(() => (userRole === 'teacher' ? 'lessonPlanner' : 'homeworkHelper') as ToolKey, [userRole]);
   const [activeTool, setActiveTool] = useState<ToolKey>(defaultTool);
 
@@ -83,6 +101,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         setUser(null);
         setDataLoading(false); // No data to load if not logged in
+        setIsAdmin(false); // Reset admin status on logout
       }
       setAuthLoading(false);
     });
@@ -92,6 +111,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Fetch data when user logs in or on initial load
   useEffect(() => {
     const fetchData = async () => {
+      // Always fetch app config, even for non-logged-in users
+      const config = await firestoreService.getAppConfig();
+      setAppConfig(config);
+      updateModelConfig(config.aiModels);
+
       if (firebaseUser) {
         setDataLoading(true);
         let userData = await firestoreService.getUserData(firebaseUser.uid);
@@ -105,6 +129,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setLanguageState(userData.settings.language || 'en');
           setSubscriptionTier(userData.subscription.tier || 'free');
           setCredits(userData.subscription.credits || 0);
+          setIsAdmin(userData.isAdmin === true);
 
           // Handle daily/monthly resets
           const todayStr = getTodayDateString();
@@ -248,10 +273,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     lessonLists, addLessonList, addTopicToLessonList, quizAttempts, addQuizAttempt,
     activeQuizTopic, setActiveQuizTopic, activeTool, setActiveTool,
     subscriptionTier, credits, usage, isSubscriptionModalOpen, setIsSubscriptionModalOpen,
-    upgradeSubscription, canUseFeature, useFeature, startGuestSession
+    upgradeSubscription, canUseFeature, useFeature, startGuestSession,
+    isAdmin, appConfig
   }), [
     user, firebaseUser, signOut, userRole, theme, language, lessonLists, quizAttempts, activeQuizTopic, activeTool,
-    subscriptionTier, credits, usage, isSubscriptionModalOpen, startGuestSession,
+    subscriptionTier, credits, usage, isSubscriptionModalOpen, startGuestSession, isAdmin, appConfig,
     setUserRole, setLanguage, addLessonList, addTopicToLessonList, addQuizAttempt,
     setActiveTool, upgradeSubscription, canUseFeature, useFeature
   ]);
