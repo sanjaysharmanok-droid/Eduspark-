@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Modality, GenerateContentResponse } from "@google/genai";
-import { LessonPlan, Quiz, Presentation, Language, ResponseStyle, PresentationTheme, Fact } from '../types';
+import { LessonPlan, Quiz, Presentation, Language, ResponseStyle, PresentationTheme, Fact, ModelConfig } from '../types';
 
 // In-memory cache for the user's session
 const cache = new Map<string, any>();
@@ -8,7 +8,8 @@ const cache = new Map<string, any>();
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Centralized, dynamic model configuration
-let modelConfig = {
+// FIX: Apply the explicit ModelConfig type for better type safety.
+let modelConfig: ModelConfig = {
     lessonPlanner: 'gemini-2.5-pro',
     homeworkHelper: 'gemini-2.5-flash-lite',
     topicExplorer: 'gemini-2.5-flash',
@@ -23,7 +24,8 @@ let modelConfig = {
     tts: 'gemini-2.5-flash-preview-tts',
 };
 
-export const updateModelConfig = (newConfig: typeof modelConfig) => {
+// FIX: Use the explicit ModelConfig type for the function parameter, allowing partial updates.
+export const updateModelConfig = (newConfig: Partial<ModelConfig>) => {
     if (newConfig) {
         modelConfig = { ...modelConfig, ...newConfig };
         console.log("AI Model configuration updated:", modelConfig);

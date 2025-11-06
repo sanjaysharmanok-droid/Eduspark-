@@ -1,3 +1,5 @@
+import { AppConfig } from '../types';
+
 // This is a global object that will be available after the Cashfree SDK is dynamically loaded.
 declare const cashfree: any;
 // This is a global object that will be available after the Stripe SDK is loaded.
@@ -123,21 +125,33 @@ const initiateCashfreePayment = async (tier: 'silver' | 'gold', userId: string, 
 };
 
 /**
- * Orchestrates the payment process, selecting the appropriate provider based on user language.
- * @param language The user's selected language code (e.g., 'en', 'hi').
+ * Orchestrates the payment process, selecting the appropriate provider based on user language and admin settings.
  */
 export const initiatePayment = async (
     tier: 'silver' | 'gold',
     userId: string,
     userEmail: string,
     userName: string,
-    language: string
+    language: string,
+    appConfig: AppConfig | null
 ): Promise<void> => {
-    // Use Cashfree for users with Hindi language preference (likely in India).
-    // Use Stripe for others (international).
-    if (language === 'hi') {
+    const isCashfreeEnabled = appConfig?.paymentSettings.gateways.find(g => g.provider === 'cashfree')?.enabled;
+    const isStripeEnabled = appConfig?.paymentSettings.gateways.find(g => g.provider === 'stripe')?.enabled;
+
+    // Use Cashfree for users with Hindi language preference (likely in India), if enabled.
+    if (language === 'hi' && isCashfreeEnabled) {
         return initiateCashfreePayment(tier, userId, userEmail, userName);
-    } else {
+    }
+    
+    // Use Stripe for others (international), if enabled.
+    if (isStripeEnabled) {
         return initiateStripePayment(tier, userId);
     }
+
+    // Fallback if the preferred gateway is disabled
+    if (isCashfreeEnabled) {
+        return initiateCashfreePayment(tier, userId, userEmail, userName);
+    }
+
+    throw new Error("No payment gateways are currently enabled. Please contact support.");
 };

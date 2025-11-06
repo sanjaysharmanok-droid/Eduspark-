@@ -86,3 +86,55 @@ export interface Fact {
   fact: string;
   detail: string;
 }
+
+// Types for Admin Panel and App Configuration
+export interface FeatureAccessConfig {
+  enabled: boolean;
+  minTier: SubscriptionTier;
+}
+
+export interface UsageLimitsConfig {
+  freeTier: {
+    [key in keyof Omit<Usage, 'date'>]?: number;
+  };
+  creditCosts: {
+    [key: string]: number; // e.g., visualAssistant: 10
+  };
+}
+
+export interface PaymentGatewayConfig {
+    provider: 'stripe' | 'cashfree' | 'razorpay';
+    enabled: boolean;
+}
+
+// FIX: Define a specific type for the AI model configuration.
+export type ModelConfig = {
+    lessonPlanner: string;
+    homeworkHelper: string;
+    topicExplorer: string;
+    presentationGenerator: string;
+    quizGenerator: string;
+    summarizer: string;
+    factFinder: string;
+    activityGenerator: string;
+    reportCardHelper: string;
+    visualAssistant: string;
+    imageGeneration: string;
+    tts: string;
+};
+
+export interface AppConfig {
+    planPrices: {
+        silver: string;
+        gold: string;
+    };
+    // FIX: Use the specific ModelConfig type for better type safety.
+    aiModels: ModelConfig;
+    featureAccess: {
+        [key: string]: FeatureAccessConfig;
+    };
+    usageLimits: UsageLimitsConfig;
+    paymentSettings: {
+        gateways: PaymentGatewayConfig[];
+    };
+}

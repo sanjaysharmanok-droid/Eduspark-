@@ -5,22 +5,35 @@ import { TOOLS, ToolKey } from '../../constants';
 import { EllipsisHorizontalIcon, SparklesIcon } from '../icons';
 
 const BottomNavBar: React.FC = () => {
-    const { userRole, activeTool, setActiveTool, subscriptionTier, setIsSubscriptionModalOpen } = useContext(AppContext);
+    const { userRole, activeTool, setActiveTool, subscriptionTier, setIsSubscriptionModalOpen, canUseFeature } = useContext(AppContext);
     const { t } = useTranslations();
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
-    // Define primary and secondary tools for each role
-    const studentPrimary = ['homeworkHelper', 'topicExplorer', 'summarizer'];
-    const studentSecondary = ['factFinder', 'visualAssistant', 'quizGenerator', 'myLibrary', 'myReports', 'planInformation', 'settings'];
-    
-    const teacherPrimary = ['lessonPlanner', 'activityGenerator', 'summarizerTeacher'];
-    const teacherSecondary = ['presentationGenerator', 'reportCardHelper', 'quizGeneratorTeacher', 'visualAssistantTeacher', 'planInformation', 'settings'];
-    
-    const primaryTools = userRole === 'student' ? studentPrimary : teacherPrimary;
-    const secondaryTools = userRole === 'student' ? studentSecondary : teacherSecondary;
+    // Filter tools based on role AND feature access config
+    const availableTools = Object.entries(TOOLS)
+        .filter(([key]) => canUseFeature(key as ToolKey))
+        .filter(([, config]) => config.role === userRole);
 
-    const navItems = primaryTools.map(key => ({ key, ...TOOLS[key as ToolKey] }));
-    const moreMenuItems = secondaryTools.map(key => ({ key, ...TOOLS[key as ToolKey] }));
+    // Define primary and secondary tools for each role from the available tools
+    const studentPrimaryKeys = ['homeworkHelper', 'topicExplorer', 'summarizer'];
+    const teacherPrimaryKeys = ['lessonPlanner', 'activityGenerator', 'summarizerTeacher'];
+
+    const primaryKeys = userRole === 'student' ? studentPrimaryKeys : teacherPrimaryKeys;
+    
+    const primaryTools = availableTools
+        .filter(([key]) => primaryKeys.includes(key))
+        .map(([key, config]) => ({ key, ...config }));
+
+    const secondaryTools = availableTools
+        .filter(([key]) => !primaryKeys.includes(key) && !['settings', 'planInformation'].includes(key))
+        .map(([key, config]) => ({ key, ...config }));
+        
+    const moreMenuItems = [
+        ...secondaryTools,
+        { key: 'planInformation', ...TOOLS['planInformation'] },
+        { key: 'settings', ...TOOLS['settings'] },
+    ].filter(item => canUseFeature(item.key as ToolKey));
+
 
     const handleSelectTool = (toolKey: ToolKey) => {
         setActiveTool(toolKey);
@@ -47,7 +60,6 @@ const BottomNavBar: React.FC = () => {
 
     return (
         <>
-            {/* Backdrop for the "More" menu */}
             {isMoreMenuOpen && (
                 <div 
                     className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30" 
@@ -55,14 +67,13 @@ const BottomNavBar: React.FC = () => {
                 />
             )}
 
-            {/* "More" menu panel */}
             <div className={`fixed bottom-28 left-2 right-2 p-4 glass-card rounded-2xl z-40 transition-transform duration-300 ease-in-out ${isMoreMenuOpen ? 'translate-y-0' : 'translate-y-[150%]'}`}>
                 {subscriptionTier !== 'gold' && (
                     <div className="p-3 mb-4 text-center rounded-lg bg-black/5 dark:bg-black/10">
                         <button
                             onClick={() => {
                                 setIsSubscriptionModalOpen(true);
-                                setIsMoreMenuOpen(false); // Close the panel
+                                setIsMoreMenuOpen(false);
                             }}
                             className="w-full flex items-center justify-center p-2 rounded-lg text-left transition-all duration-300 bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:opacity-90 hover:shadow-lg hover:shadow-indigo-500/50 space-x-2"
                         >
@@ -90,10 +101,9 @@ const BottomNavBar: React.FC = () => {
             <footer className="lg:hidden fixed bottom-0 left-0 right-0 m-2 mb-4 z-20">
                 <div className="glass-card rounded-2xl">
                     <nav className="flex justify-around items-center h-20 px-2">
-                        {navItems.map(item => (
+                        {primaryTools.slice(0, 4).map(item => (
                              <NavButton key={item.key} item={item} isActive={activeTool === item.key} />
                         ))}
-                        {/* More Button */}
                          <button 
                             key="more-button"
                             onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}

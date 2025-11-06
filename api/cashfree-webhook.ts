@@ -4,7 +4,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as admin from 'firebase-admin';
 import crypto from 'crypto';
 import { buffer } from 'micro';
-// FIX: Import Buffer to resolve type errors in environments where Node.js globals are not automatically recognized.
 import { Buffer } from 'buffer';
 
 /**

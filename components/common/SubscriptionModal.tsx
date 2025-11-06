@@ -72,10 +72,9 @@ const SubscriptionModal: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            await initiatePayment(tier, firebaseUser.uid, user.email, user.name, language);
+            await initiatePayment(tier, firebaseUser.uid, user.email || '', user.name || '', language, appConfig);
         } catch (err: any) {
             console.error("Payment initiation failed:", err);
-            // Don't show an error if the user just closed the modal.
             if (err.message !== "Payment window closed." && err.message !== "Transaction Cancelled by User") {
                  setError(err.message || "Could not start the payment process. Please try again.");
             }
@@ -89,12 +88,10 @@ const SubscriptionModal: React.FC = () => {
             price: 'Free',
             description: 'For casual learners',
             features: [
-                { text: '5 Topic Searches / day', included: true },
-                { text: '5 Homework Helps / day', included: true },
-                { text: '100 Quiz Questions / day', included: true },
-                { text: 'Limited tool access', included: true },
+                { text: 'Daily usage limits on features', included: true },
+                { text: 'Standard tool access', included: true },
                 { text: '500 bonus credits on signup', included: true },
-                { text: 'Visual Assistant (10 credits/use)', included: true },
+                { text: 'Visual Assistant (credit-based)', included: true },
                 { text: 'Ad-Supported', included: true },
             ],
         },
@@ -102,12 +99,10 @@ const SubscriptionModal: React.FC = () => {
             price: appConfig?.planPrices.silver || '₹499/mo',
             description: 'For dedicated students & teachers',
             features: [
-                { text: 'Unlimited Topic Searches', included: true },
-                { text: 'Unlimited Homework Helps', included: true },
-                { text: 'Unlimited Quiz Questions', included: true },
+                { text: 'Unlimited core feature usage', included: true },
                 { text: 'Full tool access', included: true },
                 { text: '1000 credits / month', included: true },
-                { text: 'Visual Assistant (10 credits/use)', included: true },
+                { text: 'Visual Assistant (credit-based)', included: true },
                 { text: 'Ad-Supported', included: true },
             ],
         },
@@ -121,7 +116,6 @@ const SubscriptionModal: React.FC = () => {
                 { text: 'Priority access to new features', included: true },
                 { text: 'Enhanced AI models', included: true },
                 { text: 'Premium Support', included: true },
-                { text: 'Visual Assistant (10 credits/use)', included: true },
             ],
         }
     };

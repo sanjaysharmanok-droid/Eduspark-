@@ -218,4 +218,21 @@ const App: React.FC = () => {
                       </div>
                       <div>
                           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t(activeToolDetails.nameKey)}</h1>
-                          <p className="text-gray-
+{/* FIX: Complete the truncated file and add a default export. */}
+                          <p className="text-gray-500 dark:text-gray-400">{t(activeToolDetails.descriptionKey)}</p>
+                      </div>
+                  </div>
+              </div>
+           )}
+            <React.Suspense fallback={<div className="flex justify-center p-8"><Spinner /></div>}>
+              {activeComponent}
+            </React.Suspense>
+        </div>
+      </main>
+    </div>
+    {isMobile && !isVisualAssistantActive && <BottomNavBar />}
+    </>
+  );
+};
+
+export default App;

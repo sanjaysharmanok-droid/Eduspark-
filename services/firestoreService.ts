@@ -1,7 +1,8 @@
 import { doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
-import { User, UserRole, Theme, Language, SubscriptionTier, Usage, LessonList, SavedTopic, QuizAttempt } from '../types';
+import { User, UserRole, Theme, Language, SubscriptionTier, Usage, LessonList, SavedTopic, QuizAttempt, AppConfig } from '../types';
 import { FirebaseUser } from './authService';
+import { TOOLS } from '../constants';
 
 // --- User Profile and Settings ---
 
@@ -110,11 +111,6 @@ export const addQuizAttempt = async (uid: string, attempt: Omit<QuizAttempt, 'id
 
 // --- Admin Panel Functions ---
 
-export const getIsAdmin = async (uid: string): Promise<boolean> => {
-    const userData = await getUserData(uid);
-    return userData?.isAdmin === true;
-};
-
 export const getAllUsers = async (): Promise<(User & { uid: string; subscription: any; settings: any; createdAt: any; isAdmin: boolean })[]> => {
     const usersRef = collection(db, "users");
     const snapshot = await getDocs(usersRef);
@@ -130,14 +126,20 @@ export const getAllUsers = async (): Promise<(User & { uid: string; subscription
     }));
 };
 
-export const getAppConfig = async (): Promise<any> => {
+export const getAppConfig = async (): Promise<AppConfig> => {
     const configRef = doc(db, 'app-config/global');
     const snapshot = await getDoc(configRef);
-    if (snapshot.exists()) {
-        return snapshot.data();
-    }
-    // Return default config if it doesn't exist
-    return {
+
+    const defaultFeatureAccess: { [key: string]: any } = {};
+    Object.keys(TOOLS).forEach(key => {
+        defaultFeatureAccess[key] = { enabled: true, minTier: 'free' };
+    });
+    // Set premium defaults for certain tools
+    defaultFeatureAccess.reportCardHelper.minTier = 'silver';
+    defaultFeatureAccess.presentationGenerator.minTier = 'silver';
+    
+    // Default config if it doesn't exist in Firestore
+    const defaultConfig: AppConfig = {
         planPrices: { silver: '₹499/mo', gold: '₹999/mo' },
         aiModels: {
             lessonPlanner: 'gemini-2.5-pro',
@@ -150,15 +152,66 @@ export const getAppConfig = async (): Promise<any> => {
             activityGenerator: 'gemini-2.5-flash-lite',
             reportCardHelper: 'gemini-2.5-flash',
             visualAssistant: 'gemini-2.5-flash',
+            imageGeneration: 'gemini-2.5-flash-image',
+            tts: 'gemini-2.5-flash-preview-tts',
         },
+        featureAccess: defaultFeatureAccess,
+        usageLimits: {
+            freeTier: {
+                topicSearches: 5,
+                homeworkHelps: 5,
+                summaries: 5,
+                presentations: 3,
+                lessonPlans: 5,
+                activities: 3,
+                quizQuestions: 100,
+            },
+            creditCosts: {
+                visualAssistant: 10
+            }
+        },
+        paymentSettings: {
+            gateways: [
+                { provider: 'stripe', enabled: true },
+                { provider: 'cashfree', enabled: true },
+                { provider: 'razorpay', enabled: false }, // Example for a new gateway
+            ]
+        }
     };
+
+    if (snapshot.exists()) {
+        const dbConfig = snapshot.data();
+        // Deep merge to ensure new default keys are added if not in DB
+        return {
+            ...defaultConfig,
+            ...dbConfig,
+            planPrices: { ...defaultConfig.planPrices, ...dbConfig.planPrices },
+            aiModels: { ...defaultConfig.aiModels, ...dbConfig.aiModels },
+            featureAccess: { ...defaultConfig.featureAccess, ...dbConfig.featureAccess },
+            usageLimits: {
+                ...defaultConfig.usageLimits,
+                ...dbConfig.usageLimits,
+                freeTier: { ...defaultConfig.usageLimits.freeTier, ...(dbConfig.usageLimits?.freeTier || {}) },
+                creditCosts: { ...defaultConfig.usageLimits.creditCosts, ...(dbConfig.usageLimits?.creditCosts || {}) },
+            },
+            paymentSettings: {
+                ...defaultConfig.paymentSettings,
+                ...dbConfig.paymentSettings,
+                gateways: dbConfig.paymentSettings?.gateways || defaultConfig.paymentSettings.gateways
+            },
+        };
+    }
+    
+    return defaultConfig;
 };
 
 export const updateAppConfig = async (data: object) => {
     const configRef = doc(db, 'app-config/global');
     try {
+        // Use setDoc with merge to safely update nested objects
         await setDoc(configRef, data, { merge: true });
     } catch (error) {
         console.error("Error updating app config:", error);
+        throw error;
     }
 };

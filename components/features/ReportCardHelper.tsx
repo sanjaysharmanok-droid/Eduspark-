@@ -18,7 +18,7 @@ const ReportCardHelper: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const { t, language: contextLanguage } = useTranslations();
-  const { subscriptionTier } = useContext(AppContext);
+  const { canUseFeature, subscriptionTier } = useContext(AppContext);
   const [outputLanguage, setOutputLanguage] = useState<Language>(contextLanguage);
   
   useEffect(() => {
@@ -47,9 +47,9 @@ const ReportCardHelper: React.FC = () => {
     }
   }, [studentInfo, outputLanguage]);
 
-  if (subscriptionTier === 'free') {
+  if (!canUseFeature('reportCardHelper')) {
     return (
-        <UpgradePrompt message="The Report Card Helper is a premium feature. Upgrade to generate comments." />
+        <UpgradePrompt message="The Report Card Helper is a premium feature. Upgrade your plan to generate comments." />
     );
   }
 
