@@ -165,10 +165,12 @@ const App: React.FC = () => {
 
   // 2. User is logged in. Check if they are an admin.
   if (isAdmin) {
-      // 2a. Admin has not selected their view yet.
-      if (!isAdminViewSelected) {
+      // 2a. If admin hasn't chosen a view, OR was in user-view and clicked 'Change Role',
+      // show the full admin role selector. This prevents admins from getting stuck.
+      if (!isAdminViewSelected || (adminViewMode === 'user' && !userRole)) {
           return <AdminRoleSelector />;
       }
+      
       // 2b. Admin has selected the "Admin Dashboard" view.
       if (adminViewMode === 'admin') {
           return (
@@ -185,10 +187,11 @@ const App: React.FC = () => {
             </>
           );
       }
-      // 2c. If admin selected 'user' view, the logic will fall through to the main app view below.
+      // 2c. If admin selected 'user' view AND has a role, the logic will fall through.
   }
 
-  // 3. User is a regular user (or admin in user view) and has not chosen a role.
+  // 3. User is a regular user (or an admin who has selected a user view) and has not chosen a role.
+  // This screen is for first-time non-admin users.
   if (!userRole) {
     return <HomeScreen />;
   }
