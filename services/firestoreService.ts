@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, arrayUnion, serverTimestamp, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { db } from './firebase';
 import { User, UserRole, Theme, Language, SubscriptionTier, Usage, LessonList, SavedTopic, QuizAttempt, AppConfig } from '../types';
 import { FirebaseUser } from './authService';
@@ -75,6 +75,25 @@ export const getUserData = async (uid: string) => {
   return snapshot.exists() ? snapshot.data() : null;
 };
 
+/**
+ * Sets up a real-time listener for a user's document in Firestore.
+ * @param uid The user's ID.
+ * @param callback The function to call with the user's data when it changes.
+ * @returns An unsubscribe function to stop listening for updates.
+ */
+export const onUserDataSnapshot = (uid: string, callback: (data: any) => void): Unsubscribe => {
+  if (!uid) {
+    // Return a no-op unsubscribe function if there's no UID
+    return () => {};
+  }
+  const userRef = doc(db, `users/${uid}`);
+  const unsubscribe = onSnapshot(userRef, (snapshot) => {
+    callback(snapshot.exists() ? snapshot.data() : null);
+  });
+  return unsubscribe;
+};
+
+
 export const updateUserData = async (uid: string, data: object) => {
   const userRef = doc(db, `users/${uid}`);
   try {
@@ -139,9 +158,6 @@ export const getAllUsers = async (): Promise<(User & { uid: string; subscription
 };
 
 export const getAppConfig = async (): Promise<AppConfig> => {
-    const configRef = doc(db, 'app-config/global');
-    const snapshot = await getDoc(configRef);
-
     const defaultFeatureAccess: { [key: string]: any } = {};
     Object.keys(TOOLS).forEach(key => {
         defaultFeatureAccess[key] = { enabled: true, minTier: 'free' };
@@ -191,35 +207,43 @@ export const getAppConfig = async (): Promise<AppConfig> => {
         },
     };
     
-    if (snapshot.exists()) {
-        const dbConfig = snapshot.data();
+    try {
+        const configRef = doc(db, 'app-config/global');
+        const snapshot = await getDoc(configRef);
         
-        // Combine superAdmins from the database and the default config in the code.
-        // A Set is used to prevent duplicate entries, making the initial admin setup robust.
-        const combinedAdmins = [...new Set([...(dbConfig.superAdmins || []), ...SUPER_ADMINS_LIST])];
+        if (snapshot.exists()) {
+            const dbConfig = snapshot.data();
+            
+            // Combine superAdmins from the database and the default config in the code.
+            // A Set is used to prevent duplicate entries, making the initial admin setup robust.
+            const combinedAdmins = [...new Set([...(dbConfig.superAdmins || []), ...SUPER_ADMINS_LIST])];
 
-        // Deep merge snapshot data with default config to ensure all keys are present
-        const mergedConfig = {
-            ...defaultConfig,
-            ...dbConfig,
-            planPrices: { ...defaultConfig.planPrices, ...dbConfig.planPrices },
-            aiModels: { ...defaultConfig.aiModels, ...dbConfig.aiModels },
-            featureAccess: { ...defaultConfig.featureAccess, ...dbConfig.featureAccess },
-            usageLimits: {
-                ...defaultConfig.usageLimits,
-                freeTier: { ...defaultConfig.usageLimits.freeTier, ...dbConfig.usageLimits?.freeTier },
-                creditCosts: { ...defaultConfig.usageLimits.creditCosts, ...dbConfig.usageLimits?.creditCosts },
-            },
-            paymentSettings: {
-                ...defaultConfig.paymentSettings,
-                gateways: dbConfig.paymentSettings?.gateways || defaultConfig.paymentSettings.gateways,
-            },
-            superAdmins: combinedAdmins, // Use the more robust combined list.
-        };
-        return mergedConfig as AppConfig;
-    } else {
-        // If no config exists, create one with the default values
-        await setDoc(configRef, defaultConfig);
+            // Deep merge snapshot data with default config to ensure all keys are present
+            const mergedConfig = {
+                ...defaultConfig,
+                ...dbConfig,
+                planPrices: { ...defaultConfig.planPrices, ...dbConfig.planPrices },
+                aiModels: { ...defaultConfig.aiModels, ...dbConfig.aiModels },
+                featureAccess: { ...defaultConfig.featureAccess, ...dbConfig.featureAccess },
+                usageLimits: {
+                    ...defaultConfig.usageLimits,
+                    freeTier: { ...defaultConfig.usageLimits.freeTier, ...dbConfig.usageLimits?.freeTier },
+                    creditCosts: { ...defaultConfig.usageLimits.creditCosts, ...dbConfig.usageLimits?.creditCosts },
+                },
+                paymentSettings: {
+                    ...defaultConfig.paymentSettings,
+                    gateways: dbConfig.paymentSettings?.gateways || defaultConfig.paymentSettings.gateways,
+                },
+                superAdmins: combinedAdmins, // Use the more robust combined list.
+            };
+            return mergedConfig as AppConfig;
+        } else {
+            // If no config exists, create one with the default values
+            await setDoc(configRef, defaultConfig);
+            return defaultConfig;
+        }
+    } catch (error) {
+        console.warn("Could not fetch app config from Firestore due to permissions. Falling back to local default config. App configuration will not be editable from the admin panel.", error);
         return defaultConfig;
     }
 };

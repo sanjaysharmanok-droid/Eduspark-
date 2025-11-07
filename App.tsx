@@ -11,6 +11,7 @@ import Logo from './components/common/Logo';
 import Button from './components/common/Button';
 import AdminRoleSelector from './components/common/AdminRoleSelector';
 import Spinner from './components/common/Spinner';
+import AdminControls from './components/common/AdminControls';
 
 // Dynamically import feature components
 const LessonPlanner = React.lazy(() => import('./components/features/LessonPlanner'));
@@ -233,6 +234,7 @@ const App: React.FC = () => {
       </main>
     </div>
     {isMobile && !isVisualAssistantActive && <BottomNavBar />}
+    {isAdmin && adminViewMode === 'user' && <AdminControls />}
     </>
   );
 };
