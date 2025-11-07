@@ -134,6 +134,7 @@ export interface AppConfig {
         [key: string]: FeatureAccessConfig;
     };
     usageLimits: UsageLimitsConfig;
+    superAdmins: string[];
     paymentSettings: {
         gateways: PaymentGatewayConfig[];
     };

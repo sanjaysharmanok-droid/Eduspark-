@@ -113,7 +113,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
 
             if (userData) {
-                const isAdminUser = userData.isAdmin === true;
+                let isAdminUser = userData.isAdmin === true;
+
+                // Bootstrap admin check: Promote user if they are in the superAdmins list
+                // but not yet an admin in the database. This fixes the "first admin" problem.
+                if (!isAdminUser && config?.superAdmins?.includes(firebaseUser.email!)) {
+                    console.log(`User ${firebaseUser.email} is a super admin. Promoting...`);
+                    isAdminUser = true;
+                    // Make the promotion permanent in the database, but don't wait for it to finish.
+                    // The UI will update immediately.
+                    firestoreService.updateUserData(firebaseUser.uid, { isAdmin: true });
+                }
+                
                 setIsAdmin(isAdminUser);
                 
                 if (!isAdminUser) {
@@ -121,6 +132,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     setUserRoleState(role);
                     if (role) setActiveTool(role === 'teacher' ? 'lessonPlanner' : 'homeworkHelper');
                 } else {
+                    // For admins, force them to the role selector on login.
                     setIsAdminViewSelected(false);
                     setAdminViewMode(null);
                     setUserRoleState(null);

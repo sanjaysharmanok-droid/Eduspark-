@@ -170,48 +170,5 @@ export const getAppConfig = async (): Promise<AppConfig> => {
                 visualAssistant: 10
             }
         },
-        paymentSettings: {
-            gateways: [
-                { provider: 'stripe', enabled: true },
-                { provider: 'cashfree', enabled: true },
-                { provider: 'razorpay', enabled: false }, // Example for a new gateway
-            ]
-        }
-    };
-
-    if (snapshot.exists()) {
-        const dbConfig = snapshot.data();
-        // Deep merge to ensure new default keys are added if not in DB
-        return {
-            ...defaultConfig,
-            ...dbConfig,
-            planPrices: { ...defaultConfig.planPrices, ...dbConfig.planPrices },
-            aiModels: { ...defaultConfig.aiModels, ...dbConfig.aiModels },
-            featureAccess: { ...defaultConfig.featureAccess, ...dbConfig.featureAccess },
-            usageLimits: {
-                ...defaultConfig.usageLimits,
-                ...dbConfig.usageLimits,
-                freeTier: { ...defaultConfig.usageLimits.freeTier, ...(dbConfig.usageLimits?.freeTier || {}) },
-                creditCosts: { ...defaultConfig.usageLimits.creditCosts, ...(dbConfig.usageLimits?.creditCosts || {}) },
-            },
-            paymentSettings: {
-                ...defaultConfig.paymentSettings,
-                ...dbConfig.paymentSettings,
-                gateways: dbConfig.paymentSettings?.gateways || defaultConfig.paymentSettings.gateways
-            },
-        };
-    }
-    
-    return defaultConfig;
-};
-
-export const updateAppConfig = async (data: object) => {
-    const configRef = doc(db, 'app-config/global');
-    try {
-        // Use setDoc with merge to safely update nested objects
-        await setDoc(configRef, data, { merge: true });
-    } catch (error) {
-        console.error("Error updating app config:", error);
-        throw error;
-    }
-};
+        superAdmins: [
+            'admin@example.com', // IMPORTANT: Replace with your primary admin
