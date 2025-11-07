@@ -171,7 +171,7 @@ export const getAppConfig = async (): Promise<AppConfig> => {
             }
         },
         superAdmins: [
-            'YOUR_GOOGLE_EMAIL_HERE@gmail.com', // VERY IMPORTANT: Replace this with your Google account email to become the first super admin.
+            'sanjaysharmanok@gmail.com', // VERY IMPORTANT: Replace this with your Google account email to become the first super admin.
         ],
         paymentSettings: {
             gateways: [
@@ -183,6 +183,11 @@ export const getAppConfig = async (): Promise<AppConfig> => {
     
     if (snapshot.exists()) {
         const dbConfig = snapshot.data();
+        
+        // Combine superAdmins from the database and the default config in the code.
+        // A Set is used to prevent duplicate entries, making the initial admin setup robust.
+        const combinedAdmins = [...new Set([...(dbConfig.superAdmins || []), ...defaultConfig.superAdmins])];
+
         // Deep merge snapshot data with default config to ensure all keys are present
         const mergedConfig = {
             ...defaultConfig,
@@ -199,7 +204,7 @@ export const getAppConfig = async (): Promise<AppConfig> => {
                 ...defaultConfig.paymentSettings,
                 gateways: dbConfig.paymentSettings?.gateways || defaultConfig.paymentSettings.gateways,
             },
-            superAdmins: dbConfig.superAdmins || defaultConfig.superAdmins,
+            superAdmins: combinedAdmins, // Use the more robust combined list.
         };
         return mergedConfig as AppConfig;
     } else {
