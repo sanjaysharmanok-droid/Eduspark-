@@ -4,6 +4,18 @@ import { User, UserRole, Theme, Language, SubscriptionTier, Usage, LessonList, S
 import { FirebaseUser } from './authService';
 import { TOOLS } from '../constants';
 
+// =================================================================================================
+// SUPER ADMIN CONFIGURATION
+// =================================================================================================
+// Add the Google account emails of users who should be automatically promoted to "Super Admin"
+// the first time they log in. This is crucial for initial setup.
+// The email 'sanjaysharmanok@gmail.com' is included as a default.
+// IMPORTANT: Add your primary Google account email here to gain admin access.
+// Once an admin exists, they can grant admin rights to others via the Admin Panel.
+const SUPER_ADMINS_LIST = [
+    'sanjaysharmanok@gmail.com',
+];
+
 // --- User Profile and Settings ---
 
 export const createUserProfileDocument = async (firebaseUser: FirebaseUser, additionalData?: object) => {
@@ -170,9 +182,7 @@ export const getAppConfig = async (): Promise<AppConfig> => {
                 visualAssistant: 10
             }
         },
-        superAdmins: [
-            'sanjaysharmanok@gmail.com', // VERY IMPORTANT: Replace this with your Google account email to become the first super admin.
-        ],
+        superAdmins: SUPER_ADMINS_LIST,
         paymentSettings: {
             gateways: [
                 { provider: 'stripe', enabled: true },
@@ -186,7 +196,7 @@ export const getAppConfig = async (): Promise<AppConfig> => {
         
         // Combine superAdmins from the database and the default config in the code.
         // A Set is used to prevent duplicate entries, making the initial admin setup robust.
-        const combinedAdmins = [...new Set([...(dbConfig.superAdmins || []), ...defaultConfig.superAdmins])];
+        const combinedAdmins = [...new Set([...(dbConfig.superAdmins || []), ...SUPER_ADMINS_LIST])];
 
         // Deep merge snapshot data with default config to ensure all keys are present
         const mergedConfig = {

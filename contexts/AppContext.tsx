@@ -259,7 +259,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (subscriptionTier === 'free') {
         const limit = appConfig.usageLimits.freeTier[feature as keyof typeof usage];
         if (limit !== undefined) {
-            const currentUsage = usage[feature as keyof typeof usage] || 0;
+            // Fix: Ensure currentUsage is treated as a number to prevent type errors with addition.
+            const currentUsage = Number(usage[feature as keyof Usage]) || 0;
             return (currentUsage + amount) <= limit;
         }
     }
@@ -277,7 +278,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
         const limit = appConfig.usageLimits.freeTier[feature as keyof typeof usage];
         if (subscriptionTier === 'free' && limit !== undefined) {
-            const currentUsage = usage[feature as keyof typeof usage] || 0;
+            // Fix: Ensure currentUsage is treated as a number to prevent type errors with addition.
+            const currentUsage = Number(usage[feature as keyof Usage]) || 0;
             const newUsage = { ...usage, [feature]: currentUsage + amount };
             setUsage(newUsage);
             firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
