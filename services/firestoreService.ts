@@ -171,4 +171,46 @@ export const getAppConfig = async (): Promise<AppConfig> => {
             }
         },
         superAdmins: [
-            'admin@example.com', // IMPORTANT: Replace with your primary admin
+            'YOUR_GOOGLE_EMAIL_HERE@gmail.com', // VERY IMPORTANT: Replace this with your Google account email to become the first super admin.
+        ],
+        paymentSettings: {
+            gateways: [
+                { provider: 'stripe', enabled: true },
+                { provider: 'cashfree', enabled: true },
+            ],
+        },
+    };
+    
+    if (snapshot.exists()) {
+        const dbConfig = snapshot.data();
+        // Deep merge snapshot data with default config to ensure all keys are present
+        const mergedConfig = {
+            ...defaultConfig,
+            ...dbConfig,
+            planPrices: { ...defaultConfig.planPrices, ...dbConfig.planPrices },
+            aiModels: { ...defaultConfig.aiModels, ...dbConfig.aiModels },
+            featureAccess: { ...defaultConfig.featureAccess, ...dbConfig.featureAccess },
+            usageLimits: {
+                ...defaultConfig.usageLimits,
+                freeTier: { ...defaultConfig.usageLimits.freeTier, ...dbConfig.usageLimits?.freeTier },
+                creditCosts: { ...defaultConfig.usageLimits.creditCosts, ...dbConfig.usageLimits?.creditCosts },
+            },
+            paymentSettings: {
+                ...defaultConfig.paymentSettings,
+                gateways: dbConfig.paymentSettings?.gateways || defaultConfig.paymentSettings.gateways,
+            },
+            superAdmins: dbConfig.superAdmins || defaultConfig.superAdmins,
+        };
+        return mergedConfig as AppConfig;
+    } else {
+        // If no config exists, create one with the default values
+        await setDoc(configRef, defaultConfig);
+        return defaultConfig;
+    }
+};
+
+export const updateAppConfig = async (config: AppConfig) => {
+    const configRef = doc(db, 'app-config/global');
+    // Using set with merge true is okay here because the admin panel sends the whole config object.
+    await setDoc(configRef, config, { merge: true });
+};

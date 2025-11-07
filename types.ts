@@ -107,7 +107,6 @@ export interface PaymentGatewayConfig {
     enabled: boolean;
 }
 
-// FIX: Define a specific type for the AI model configuration.
 export type ModelConfig = {
     lessonPlanner: string;
     homeworkHelper: string;
@@ -128,7 +127,6 @@ export interface AppConfig {
         silver: string;
         gold: string;
     };
-    // FIX: Use the specific ModelConfig type for better type safety.
     aiModels: ModelConfig;
     featureAccess: {
         [key: string]: FeatureAccessConfig;

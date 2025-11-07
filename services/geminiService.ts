@@ -8,7 +8,6 @@ const cache = new Map<string, any>();
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Centralized, dynamic model configuration
-// FIX: Apply the explicit ModelConfig type for better type safety.
 let modelConfig: ModelConfig = {
     lessonPlanner: 'gemini-2.5-pro',
     homeworkHelper: 'gemini-2.5-flash-lite',
@@ -24,7 +23,6 @@ let modelConfig: ModelConfig = {
     tts: 'gemini-2.5-flash-preview-tts',
 };
 
-// FIX: Use the explicit ModelConfig type for the function parameter, allowing partial updates.
 export const updateModelConfig = (newConfig: Partial<ModelConfig>) => {
     if (newConfig) {
         modelConfig = { ...modelConfig, ...newConfig };

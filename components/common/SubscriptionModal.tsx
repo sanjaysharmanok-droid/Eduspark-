@@ -3,7 +3,6 @@ import { AppContext } from '../../contexts/AppContext';
 import Modal from './Modal';
 import Button from './Button';
 import { CheckCircleIcon, XCircleIcon } from '../icons';
-import { initiatePayment } from '../../services/paymentService';
 import { SubscriptionTier } from '../../types';
 
 const TierCard: React.FC<{
@@ -13,9 +12,8 @@ const TierCard: React.FC<{
     features: { text: string; included: boolean }[];
     currentTier: string;
     onSelect: (tier: 'silver' | 'gold') => void;
-    isLoading: boolean;
     isPopular?: boolean;
-}> = ({ tier, price, description, features, currentTier, onSelect, isLoading, isPopular = false }) => {
+}> = ({ tier, price, description, features, currentTier, onSelect, isPopular = false }) => {
     
     const tierKey = tier.toLowerCase() as 'free' | 'silver' | 'gold';
     const isCurrent = currentTier === tierKey;
@@ -48,9 +46,8 @@ const TierCard: React.FC<{
                 ) : (
                     <Button 
                         onClick={() => onSelect(tierKey as 'silver' | 'gold')} 
-                        isLoading={isLoading}
                         className={`w-full ${tierKey === 'free' ? 'hidden' : ''} ${isPopular ? '' : 'from-gray-500 to-slate-600 hover:shadow-slate-500/50'}`}>
-                        {isLoading ? 'Processing...' : (currentTier === 'free' ? 'Upgrade Plan' : (tierKey === 'gold' ? 'Upgrade' : 'Downgrade'))}
+                        {currentTier === 'free' ? 'Upgrade Plan' : (tierKey === 'gold' ? 'Upgrade' : 'Downgrade')}
                     </Button>
                 )}
             </div>
@@ -59,28 +56,17 @@ const TierCard: React.FC<{
 };
 
 const SubscriptionModal: React.FC = () => {
-    const { isSubscriptionModalOpen, setIsSubscriptionModalOpen, subscriptionTier, firebaseUser, user, language, appConfig } = useContext(AppContext);
-    const [isLoading, setIsLoading] = useState(false);
+    const { isSubscriptionModalOpen, setIsSubscriptionModalOpen, subscriptionTier, firebaseUser, user, appConfig } = useContext(AppContext);
     const [error, setError] = useState<string | null>(null);
 
-    const handlePlanSelect = async (tier: 'silver' | 'gold') => {
-        if (!firebaseUser || !user) {
+    const handlePlanSelect = (tier: 'silver' | 'gold') => {
+        if (!firebaseUser || !user || user.email === 'guest@eduspark.ai') {
             setError("You must be logged in to upgrade your plan. Guest users cannot subscribe.");
             return;
         }
 
-        setIsLoading(true);
-        setError(null);
-        try {
-            await initiatePayment(tier, firebaseUser.uid, user.email || '', user.name || '', language, appConfig);
-        } catch (err: any) {
-            console.error("Payment initiation failed:", err);
-            if (err.message !== "Payment window closed." && err.message !== "Transaction Cancelled by User") {
-                 setError(err.message || "Could not start the payment process. Please try again.");
-            }
-        } finally {
-            setIsLoading(false);
-        }
+        // Inform user about Firebase Spark plan limitations instead of initiating payment.
+        setError("Payment functionality is not available on the free Firebase 'Spark' plan. This plan restricts network requests to non-Google services like payment providers. To enable subscriptions, please upgrade your Firebase project to the 'Blaze' (Pay as you go) plan.");
     };
 
     const planData = {
@@ -121,11 +107,11 @@ const SubscriptionModal: React.FC = () => {
     };
 
     return (
-        <Modal isOpen={isSubscriptionModalOpen} onClose={() => setIsSubscriptionModalOpen(false)} title="Choose the plan that best fits your educational journey.">
+        <Modal isOpen={isSubscriptionModalOpen} onClose={() => { setIsSubscriptionModalOpen(false); setError(null); }} title="Choose the plan that best fits your educational journey.">
             <div className="p-2">
                 {error && (
                     <div className="mb-4 p-3 text-center bg-red-100 dark:bg-red-900/50 border border-red-300 dark:border-red-500/50 text-red-700 dark:text-red-200 rounded-lg">
-                        <p className="font-semibold">Payment Error</p>
+                        <p className="font-semibold">Information</p>
                         <p className="text-sm">{error}</p>
                     </div>
                 )}
@@ -137,7 +123,6 @@ const SubscriptionModal: React.FC = () => {
                         features={planData.free.features}
                         currentTier={subscriptionTier}
                         onSelect={() => {}}
-                        isLoading={false}
                     />
                      <TierCard
                         tier="Silver"
@@ -146,7 +131,6 @@ const SubscriptionModal: React.FC = () => {
                         features={planData.silver.features}
                         currentTier={subscriptionTier}
                         onSelect={handlePlanSelect}
-                        isLoading={isLoading}
                     />
                      <TierCard
                         tier="Gold"
@@ -155,7 +139,6 @@ const SubscriptionModal: React.FC = () => {
                         features={planData.gold.features}
                         currentTier={subscriptionTier}
                         onSelect={handlePlanSelect}
-                        isLoading={isLoading}
                         isPopular
                     />
                 </div>

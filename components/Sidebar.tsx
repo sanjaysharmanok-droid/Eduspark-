@@ -13,12 +13,12 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTool, setActiveTool, isSidebarCollapsed, setIsSidebarCollapsed }) => {
-  const { userRole, setIsSubscriptionModalOpen, isAdmin, setAdminViewMode } = useContext(AppContext);
+  const { userRole, setIsSubscriptionModalOpen, isAdmin, setAdminViewMode, canUseFeature } = useContext(AppContext);
   const { t } = useTranslations();
 
   const mainTools = Object.entries(TOOLS)
     .filter(([key]) => !['settings', 'planInformation', 'adminPanel'].includes(key))
-    .filter(([, config]) => config.role === userRole)
+    .filter(([key, config]) => config.role === userRole && canUseFeature(key as ToolKey))
     .map(([key, config]) => ({ key: key as ToolKey, ...config }));
 
   const settingsTool = TOOLS['settings'] ? { key: 'settings' as ToolKey, ...TOOLS['settings'] } : null;
