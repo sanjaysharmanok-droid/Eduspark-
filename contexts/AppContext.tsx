@@ -46,6 +46,16 @@ export const AppContext = createContext<AppContextType>({} as AppContextType);
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
+const defaultUsage: Omit<Usage, 'date'> = {
+    quizQuestions: 0,
+    topicSearches: 0,
+    homeworkHelps: 0,
+    presentations: 0,
+    lessonPlans: 0,
+    activities: 0,
+    summaries: 0,
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -62,7 +72,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
   const [credits, setCredits] = useState<number>(0);
-  const [usage, setUsage] = useState<Usage>({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 });
+  const [usage, setUsage] = useState<Usage>({ date: getTodayDateString(), ...defaultUsage });
 
   // Admin and Config State
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
@@ -119,7 +129,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // --- Security Check: Blocked User ---
         if (userData.status === 'blocked') {
             alert("Your account has been suspended by an administrator. Please contact support.");
-            // FIX: The imported `firebaseSignOut` from `authService` is a wrapper that takes no arguments.
             firebaseSignOut();
             return; // Stop processing data for this user
         }
@@ -150,11 +159,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         
         const todayStr = getTodayDateString();
         if (userData.usage?.date !== todayStr) {
-            const newUsage = { ...usage, date: todayStr };
+            const newUsage = { date: todayStr, ...defaultUsage };
             setUsage(newUsage);
             firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
         } else {
-            setUsage({ ...usage, ...userData.usage });
+            setUsage({ date: todayStr, ...defaultUsage, ...userData.usage });
         }
         
         const [lists, attempts] = await Promise.all([
@@ -168,7 +177,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     return () => unsubscribe();
-  }, [firebaseUser, appConfig]);
+  }, [firebaseUser, appConfig, adminViewMode]);
   
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -184,7 +193,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const signOut = useCallback(async () => {
-    // FIX: The imported `firebaseSignOut` from `authService` is a wrapper that takes no arguments.
     await firebaseSignOut();
   }, []);
   
@@ -194,7 +202,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUserRoleState('student');
     setSubscriptionTier('free');
     setCredits(50);
-    setUsage({ date: getTodayDateString(), quizQuestions: 0, topicSearches: 0, homeworkHelps: 0, presentations: 0, lessonPlans: 0, activities: 0, summaries: 0 });
+    setUsage({ date: getTodayDateString(), ...defaultUsage });
     setLessonLists([]);
     setQuizAttempts([]);
     setIsAdmin(false);
@@ -247,6 +255,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const canUseFeature = useCallback((feature: ToolKey, amount = 1): boolean => {
     if (!appConfig) return false;
+    
+    if (feature === 'adminPanel') {
+        return isAdmin;
+    }
+    
     const featureConfig = appConfig.featureAccess[feature];
     if (!featureConfig || !featureConfig.enabled) return false;
     const tierHierarchy: Record<SubscriptionTier, number> = { free: 0, silver: 1, gold: 2 };
@@ -261,7 +274,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }
     return true;
-  }, [appConfig, subscriptionTier, credits, usage]);
+  }, [appConfig, subscriptionTier, credits, usage, isAdmin]);
 
   const useFeature = useCallback((feature: ToolKey, amount = 1) => {
     if (!appConfig || !firebaseUser) return;

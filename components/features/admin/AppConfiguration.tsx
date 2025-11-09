@@ -215,7 +215,7 @@ const AppConfiguration: React.FC = () => {
 
             <div className="flex justify-end items-center pt-4">
                 {successMessage && <p className="text-green-600 dark:text-green-400 mr-4 transition-opacity duration-300">{successMessage}</p>}
-                <Button onClick={handleSave} isLoading={saving}>Save All Settings</Button>
+                <Button onClick={handleSave} isLoading={saving} type="button">Save All Settings</Button>
             </div>
         </div>
     );
