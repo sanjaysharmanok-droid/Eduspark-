@@ -81,70 +81,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         setUser(null);
         setFirebaseUser(null);
-        // Clean up all user-specific state on logout
         setIsAdmin(false);
         setUserRoleState(null);
         setAdminViewMode(null);
         setIsAdminViewSelected(false);
-        setDataLoading(false); // Stop loading on logout
+        setDataLoading(false);
       }
       setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Effect to fetch app-wide configuration once on load.
   useEffect(() => {
-    const fetchConfig = async () => {
-        try {
-            const config = await firestoreService.getAppConfig();
-            setAppConfig(config);
-            if (config?.aiModels) {
-                updateModelConfig(config.aiModels);
-            }
-        } catch (error) {
-            console.error("Error fetching app config:", error);
+    const unsubscribe = firestoreService.onAppConfigSnapshot((config) => {
+        setAppConfig(config);
+        if (config?.aiModels) {
+            updateModelConfig(config.aiModels);
         }
-    };
-    fetchConfig();
+    });
+    return () => unsubscribe();
   }, []);
 
-  // Effect for real-time user data handling
   useEffect(() => {
-    // If there's no logged-in user, clear user state and do nothing further.
     if (!firebaseUser) {
         setDataLoading(false);
         return;
     }
-    // Wait for the app configuration to be loaded before processing user data.
-    if (!appConfig) {
-        return;
-    }
-
+    if (!appConfig) return;
     setDataLoading(true);
 
-    // Set up a real-time listener for the current user's document.
     const unsubscribe = firestoreService.onUserDataSnapshot(firebaseUser.uid, async (userData) => {
         if (!userData) {
-            // This is a new user, so we create their profile document in Firestore.
-            // The listener will automatically be triggered again with the newly created data.
             await firestoreService.createUserProfileDocument(firebaseUser);
             return;
         }
 
-        // --- Process User Data ---
+        // --- Security Check: Blocked User ---
+        if (userData.status === 'blocked') {
+            alert("Your account has been suspended by an administrator. Please contact support.");
+            // FIX: The imported `firebaseSignOut` from `authService` is a wrapper that takes no arguments.
+            firebaseSignOut();
+            return; // Stop processing data for this user
+        }
 
-        // Determine if the user is an admin. This is the core logic for permissions.
         let isAdminUser = userData.isAdmin === true;
-
-        // Automatically promote users if their email is in the superAdmins list in the config.
         if (!isAdminUser && appConfig.superAdmins?.includes(firebaseUser.email!)) {
             isAdminUser = true;
             firestoreService.updateUserData(firebaseUser.uid, { isAdmin: true });
         }
         setIsAdmin(isAdminUser);
         
-        // Handle role and view selection based on admin status.
         if (isAdminUser) {
             if (!adminViewMode) {
                 setIsAdminViewSelected(false);
@@ -153,7 +139,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } else {
             const role = userData.settings?.role || null;
             setUserRoleState(role);
-            // If the user was demoted from admin, move them away from the admin panel.
             if (activeTool === 'adminPanel') {
                 setActiveTool(role === 'teacher' ? 'lessonPlanner' : 'homeworkHelper');
             }
@@ -163,17 +148,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSubscriptionTier(userData.subscription?.tier || 'free');
         setCredits(userData.subscription?.credits || 0);
         
-        // Check if daily usage needs to be reset.
         const todayStr = getTodayDateString();
         if (userData.usage?.date !== todayStr) {
-            const newUsage = { ...usage, date: todayStr }; // Resets all counts to 0
+            const newUsage = { ...usage, date: todayStr };
             setUsage(newUsage);
             firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
         } else {
             setUsage({ ...usage, ...userData.usage });
         }
         
-        // Fetch sub-collections which don't require real-time updates.
         const [lists, attempts] = await Promise.all([
            firestoreService.getLessonLists(firebaseUser.uid),
            firestoreService.getQuizAttempts(firebaseUser.uid)
@@ -184,10 +167,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setDataLoading(false);
     });
 
-    // The cleanup function for this effect, which runs when the user logs out.
     return () => unsubscribe();
-
-  }, [firebaseUser, appConfig]); // This effect depends on the user logging in and the app config being loaded.
+  }, [firebaseUser, appConfig]);
   
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -203,6 +184,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const signOut = useCallback(async () => {
+    // FIX: The imported `firebaseSignOut` from `authService` is a wrapper that takes no arguments.
     await firebaseSignOut();
   }, []);
   
@@ -223,7 +205,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const selectAdminView = useCallback((view: 'student' | 'teacher' | 'admin') => {
     if (view === 'admin') {
-        setUserRoleState('teacher'); // Nominal role for sidebar tools
+        setUserRoleState('teacher');
         setAdminViewMode('admin');
         setActiveTool('adminPanel');
     } else {
@@ -265,16 +247,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const canUseFeature = useCallback((feature: ToolKey, amount = 1): boolean => {
     if (!appConfig) return false;
-
     const featureConfig = appConfig.featureAccess[feature];
     if (!featureConfig || !featureConfig.enabled) return false;
-
     const tierHierarchy: Record<SubscriptionTier, number> = { free: 0, silver: 1, gold: 2 };
     if (tierHierarchy[subscriptionTier] < tierHierarchy[featureConfig.minTier]) return false;
-
     const creditCost = appConfig.usageLimits.creditCosts[feature];
     if (creditCost) return credits >= creditCost * amount;
-
     if (subscriptionTier === 'free') {
         const limit = appConfig.usageLimits.freeTier[feature as keyof typeof usage];
         if (limit !== undefined) {
@@ -287,6 +265,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const useFeature = useCallback((feature: ToolKey, amount = 1) => {
     if (!appConfig || !firebaseUser) return;
+
+    firestoreService.logUserActivity(firebaseUser.uid, firebaseUser.email!, 'useFeature', { feature, amount });
 
     const creditCost = appConfig.usageLimits.creditCosts[feature];
     if (creditCost) {

@@ -8,16 +8,19 @@ import Spinner from '../../common/Spinner';
 import Input from '../../common/Input';
 import Select from '../../common/Select';
 import { TOOLS } from '../../../constants';
+import { useTranslations } from '../../../hooks/useTranslations';
 
 const AppConfiguration: React.FC = () => {
     const { appConfig } = useContext(AppContext);
     const [config, setConfig] = useState<AppConfig | null>(appConfig);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
+    const { t } = useTranslations();
 
     useEffect(() => {
         if (appConfig) {
-            setConfig(appConfig);
+            setConfig(JSON.parse(JSON.stringify(appConfig))); // Deep copy to prevent direct mutation
             setLoading(false);
         }
     }, [appConfig]);
@@ -25,9 +28,11 @@ const AppConfiguration: React.FC = () => {
     const handleSave = async () => {
         if (!config) return;
         setSaving(true);
+        setSuccessMessage('');
         try {
             await firestoreService.updateAppConfig(config);
-            alert("Configuration saved successfully! Changes will apply on the next app refresh for users.");
+            setSuccessMessage("Configuration saved successfully!");
+            setTimeout(() => setSuccessMessage(''), 3000);
         } catch (err) {
             alert("Failed to save configuration.");
             console.error(err);
@@ -101,7 +106,7 @@ const AppConfiguration: React.FC = () => {
         <div className="space-y-6">
             <Card>
                 <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Application Configuration</h2>
-                <p className="text-gray-600 dark:text-gray-400">Manage all application settings from one place. Changes will be applied globally upon the next refresh.</p>
+                <p className="text-gray-600 dark:text-gray-400">Manage all application settings from one place. Changes are saved in real-time and will be reflected for all users.</p>
             </Card>
 
             {/* Feature Access Management */}
@@ -110,7 +115,7 @@ const AppConfiguration: React.FC = () => {
                     {Object.entries(TOOLS).map(([key, tool]) => (
                         <div key={key} className="p-4 border border-gray-200 dark:border-slate-700 rounded-lg">
                             <div className="flex justify-between items-center">
-                                <h4 className="font-semibold text-gray-800 dark:text-gray-200">{tool.nameKey.en}</h4>
+                                <h4 className="font-semibold text-gray-800 dark:text-gray-200">{t(tool.nameKey)}</h4>
                                 <button
                                     type="button" role="switch" aria-checked={config.featureAccess[key]?.enabled}
                                     onClick={() => handleFeatureAccessChange(key, 'enabled', !config.featureAccess[key]?.enabled)}
@@ -170,7 +175,6 @@ const AppConfiguration: React.FC = () => {
                 </div>
             </Card>
 
-            {/* AI Model & Payment Gateway Management */}
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                  <Card title="AI Model Configuration">
                     <div className="space-y-4">
@@ -179,7 +183,7 @@ const AppConfiguration: React.FC = () => {
                                 key={key}
                                 label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                                 id={`model-${key}`}
-                                value={config.aiModels[key]}
+                                value={config.aiModels[key as keyof typeof config.aiModels]}
                                 onChange={e => setConfig(c => ({...c!, aiModels: {...c!.aiModels, [key]: e.target.value}}))}
                             >
                                 <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
@@ -209,8 +213,8 @@ const AppConfiguration: React.FC = () => {
                  </Card>
              </div>
 
-
-            <div className="flex justify-end pt-4">
+            <div className="flex justify-end items-center pt-4">
+                {successMessage && <p className="text-green-600 dark:text-green-400 mr-4 transition-opacity duration-300">{successMessage}</p>}
                 <Button onClick={handleSave} isLoading={saving}>Save All Settings</Button>
             </div>
         </div>

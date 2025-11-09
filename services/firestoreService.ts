@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, arrayUnion, serverTimestamp, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, arrayUnion, serverTimestamp, onSnapshot, Unsubscribe, query, orderBy, limit } from 'firebase/firestore';
 import { db } from './firebase';
 import { User, UserRole, Theme, Language, SubscriptionTier, Usage, LessonList, SavedTopic, QuizAttempt, AppConfig } from '../types';
 import { FirebaseUser } from './authService';
@@ -43,6 +43,7 @@ export const createUserProfileDocument = async (firebaseUser: FirebaseUser, addi
         tier: 'free',
         credits: 500, // Sign-up bonus
         lastCreditReset: new Date().toISOString(),
+        status: 'active',
       },
       usage: {
         date: new Date().toISOString().split('T')[0],
@@ -55,6 +56,7 @@ export const createUserProfileDocument = async (firebaseUser: FirebaseUser, addi
         summaries: 0,
       },
       isAdmin: false, // Default to not admin
+      status: 'active', // 'active' or 'blocked'
       ...additionalData
     };
 
@@ -75,15 +77,8 @@ export const getUserData = async (uid: string) => {
   return snapshot.exists() ? snapshot.data() : null;
 };
 
-/**
- * Sets up a real-time listener for a user's document in Firestore.
- * @param uid The user's ID.
- * @param callback The function to call with the user's data when it changes.
- * @returns An unsubscribe function to stop listening for updates.
- */
 export const onUserDataSnapshot = (uid: string, callback: (data: any) => void): Unsubscribe => {
   if (!uid) {
-    // Return a no-op unsubscribe function if there's no UID
     return () => {};
   }
   const userRef = doc(db, `users/${uid}`);
@@ -92,7 +87,6 @@ export const onUserDataSnapshot = (uid: string, callback: (data: any) => void): 
   });
   return unsubscribe;
 };
-
 
 export const updateUserData = async (uid: string, data: object) => {
   const userRef = doc(db, `users/${uid}`);
@@ -103,8 +97,24 @@ export const updateUserData = async (uid: string, data: object) => {
   }
 };
 
-// --- Lesson Lists and Topics ---
+// --- Activity Logging ---
+export const logUserActivity = async (uid: string, email: string, action: string, details: object = {}) => {
+  if (!uid) return;
+  try {
+    const activityLogsRef = collection(db, 'activityLogs');
+    await addDoc(activityLogsRef, {
+      userId: uid,
+      userEmail: email,
+      action,
+      details,
+      timestamp: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Error logging user activity:", error);
+  }
+};
 
+// --- Lesson Lists and Topics ---
 export const getLessonLists = async (uid: string): Promise<LessonList[]> => {
     const listsRef = collection(db, `users/${uid}/lessonLists`);
     const snapshot = await getDocs(listsRef);
@@ -126,11 +136,11 @@ export const addTopicToLessonList = async (uid: string, listId: string, topic: S
 };
 
 // --- Quiz Attempts ---
-
 export const getQuizAttempts = async (uid: string): Promise<QuizAttempt[]> => {
     const attemptsRef = collection(db, `users/${uid}/quizAttempts`);
-    const snapshot = await getDocs(attemptsRef);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QuizAttempt)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const q = query(attemptsRef, orderBy('date', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QuizAttempt));
 };
 
 export const addQuizAttempt = async (uid: string, attempt: Omit<QuizAttempt, 'id' | 'date'>): Promise<QuizAttempt> => {
@@ -140,54 +150,16 @@ export const addQuizAttempt = async (uid: string, attempt: Omit<QuizAttempt, 'id
     return { id: docRef.id, ...newAttempt };
 };
 
-// --- Admin Panel Functions ---
-
-export const getAllUsers = async (): Promise<(User & { uid: string; subscription: any; settings: any; createdAt: any; isAdmin: boolean })[]> => {
-    const usersRef = collection(db, "users");
-    const snapshot = await getDocs(usersRef);
-    return snapshot.docs.map(doc => {
-        const data = doc.data();
-        const profile = data.profile || {};
-        const subscription = data.subscription || {};
-        const settings = data.settings || {};
-        
-        // Ensure createdAt is a Date object, handling Firestore Timestamps or null/undefined
-        let createdAtDate = new Date(); // Default to now if not found
-        if (profile.createdAt && typeof profile.createdAt.toDate === 'function') {
-            createdAtDate = profile.createdAt.toDate();
-        } else if (profile.createdAt) {
-            // It might already be a Date object or string, try to parse
-            try {
-                createdAtDate = new Date(profile.createdAt);
-            } catch (e) {
-                console.warn(`Could not parse createdAt for user ${doc.id}`);
-            }
-        }
-
-        return {
-            uid: doc.id,
-            name: profile.name || 'N/A',
-            email: profile.email || 'N/A',
-            picture: profile.picture || '',
-            subscription: subscription,
-            settings: settings,
-            createdAt: createdAtDate,
-            isAdmin: data.isAdmin || false,
-        };
-    });
-};
-
-export const getAppConfig = async (): Promise<AppConfig> => {
+// --- Admin Panel & App Configuration ---
+const getDefaultAppConfig = (): AppConfig => {
     const defaultFeatureAccess: { [key: string]: any } = {};
     Object.keys(TOOLS).forEach(key => {
         defaultFeatureAccess[key] = { enabled: true, minTier: 'free' };
     });
-    // Set premium defaults for certain tools
     defaultFeatureAccess.reportCardHelper.minTier = 'silver';
     defaultFeatureAccess.presentationGenerator.minTier = 'silver';
     
-    // Default config if it doesn't exist in Firestore
-    const defaultConfig: AppConfig = {
+    return {
         planPrices: { silver: '₹499/mo', gold: '₹999/mo' },
         aiModels: {
             lessonPlanner: 'gemini-2.5-pro',
@@ -205,71 +177,104 @@ export const getAppConfig = async (): Promise<AppConfig> => {
         },
         featureAccess: defaultFeatureAccess,
         usageLimits: {
-            freeTier: {
-                topicSearches: 5,
-                homeworkHelps: 5,
-                summaries: 5,
-                presentations: 3,
-                lessonPlans: 5,
-                activities: 3,
-                quizQuestions: 100,
-            },
-            creditCosts: {
-                visualAssistant: 10
-            }
+            freeTier: { topicSearches: 5, homeworkHelps: 5, summaries: 5, presentations: 3, lessonPlans: 5, activities: 3, quizQuestions: 100 },
+            creditCosts: { visualAssistant: 10 }
         },
         superAdmins: SUPER_ADMINS_LIST,
-        paymentSettings: {
-            gateways: [
-                { provider: 'stripe', enabled: true },
-                { provider: 'cashfree', enabled: true },
-            ],
-        },
+        paymentSettings: { gateways: [{ provider: 'stripe', enabled: true }, { provider: 'cashfree', enabled: true }] },
     };
-    
-    try {
-        const configRef = doc(db, 'app-config/global');
-        const snapshot = await getDoc(configRef);
-        
-        if (snapshot.exists()) {
-            const dbConfig = snapshot.data();
-            
-            // Combine superAdmins from the database and the default config in the code.
-            // A Set is used to prevent duplicate entries, making the initial admin setup robust.
-            const combinedAdmins = [...new Set([...(dbConfig.superAdmins || []), ...SUPER_ADMINS_LIST])];
+};
 
-            // Deep merge snapshot data with default config to ensure all keys are present
-            const mergedConfig = {
-                ...defaultConfig,
-                ...dbConfig,
-                planPrices: { ...defaultConfig.planPrices, ...dbConfig.planPrices },
-                aiModels: { ...defaultConfig.aiModels, ...dbConfig.aiModels },
-                featureAccess: { ...defaultConfig.featureAccess, ...dbConfig.featureAccess },
-                usageLimits: {
-                    ...defaultConfig.usageLimits,
-                    freeTier: { ...defaultConfig.usageLimits.freeTier, ...dbConfig.usageLimits?.freeTier },
-                    creditCosts: { ...defaultConfig.usageLimits.creditCosts, ...dbConfig.usageLimits?.creditCosts },
-                },
-                paymentSettings: {
-                    ...defaultConfig.paymentSettings,
-                    gateways: dbConfig.paymentSettings?.gateways || defaultConfig.paymentSettings.gateways,
-                },
-                superAdmins: combinedAdmins, // Use the more robust combined list.
-            };
-            return mergedConfig as AppConfig;
-        } else {
-            // If no config exists, create one with the default values
-            await setDoc(configRef, defaultConfig);
-            return defaultConfig;
-        }
-    } catch (error) {
-        console.warn("Could not fetch app config from Firestore due to permissions. Falling back to local default config. App configuration will not be editable from the admin panel.", error);
-        return defaultConfig;
+const mergeConfigWithDefaults = (dbConfig: any, defaultConfig: AppConfig): AppConfig => {
+    const combinedAdmins = [...new Set([...(dbConfig.superAdmins || []), ...defaultConfig.superAdmins])];
+    const featureAccess = JSON.parse(JSON.stringify(defaultConfig.featureAccess));
+    if (dbConfig.featureAccess) {
+        Object.keys(featureAccess).forEach(key => {
+            if (dbConfig.featureAccess[key]) {
+                featureAccess[key] = { ...featureAccess[key], ...dbConfig.featureAccess[key] };
+            }
+        });
     }
+    return {
+        ...defaultConfig,
+        ...dbConfig,
+        planPrices: { ...defaultConfig.planPrices, ...dbConfig.planPrices },
+        aiModels: { ...defaultConfig.aiModels, ...dbConfig.aiModels },
+        featureAccess: featureAccess,
+        usageLimits: {
+            freeTier: { ...defaultConfig.usageLimits.freeTier, ...dbConfig.usageLimits?.freeTier },
+            creditCosts: { ...defaultConfig.usageLimits.creditCosts, ...dbConfig.usageLimits?.creditCosts },
+        },
+        paymentSettings: { gateways: dbConfig.paymentSettings?.gateways || defaultConfig.paymentSettings.gateways },
+        superAdmins: combinedAdmins,
+    };
+};
+
+export const onAppConfigSnapshot = (callback: (config: AppConfig) => void): Unsubscribe => {
+    const defaultConfig = getDefaultAppConfig();
+    const configRef = doc(db, 'app-config/global');
+    return onSnapshot(configRef, async (snapshot) => {
+        if (snapshot.exists()) {
+            callback(mergeConfigWithDefaults(snapshot.data(), defaultConfig));
+        } else {
+            console.log("No app config found, creating one with defaults.");
+            try {
+                await setDoc(configRef, defaultConfig);
+                callback(defaultConfig);
+            } catch (error) {
+                console.error("Failed to create default app config:", error);
+                callback(defaultConfig);
+            }
+        }
+    }, (error) => {
+        console.warn("Real-time config listener failed, falling back to local defaults.", error);
+        callback(defaultConfig);
+    });
+};
+
+export const getAllUsers = async (): Promise<(User & { uid: string; subscription: any; settings: any; createdAt: any; isAdmin: boolean; status: 'active' | 'blocked' })[]> => {
+    const usersRef = collection(db, "users");
+    const snapshot = await getDocs(usersRef);
+    return snapshot.docs.map(doc => {
+        const data = doc.data();
+        const profile = data.profile || {};
+        const subscription = data.subscription || {};
+        const settings = data.settings || {};
+        let createdAtDate = new Date();
+        if (profile.createdAt?.toDate) {
+            createdAtDate = profile.createdAt.toDate();
+        } else if (profile.createdAt) {
+            try { createdAtDate = new Date(profile.createdAt); } catch (e) {}
+        }
+        return {
+            uid: doc.id,
+            name: profile.name || 'N/A',
+            email: profile.email || 'N/A',
+            picture: profile.picture || '',
+            subscription: subscription,
+            settings: settings,
+            createdAt: createdAtDate,
+            isAdmin: data.isAdmin || false,
+            status: data.status || 'active',
+        };
+    });
 };
 
 export const updateAppConfig = async (config: AppConfig) => {
     const configRef = doc(db, 'app-config/global');
-    // Using set with merge true is okay here because the admin panel sends the whole config object.
     await setDoc(configRef, config, { merge: true });
+};
+
+export const getActivityLogs = async (limitCount = 100) => {
+    const logsRef = collection(db, 'activityLogs');
+    const q = query(logsRef, orderBy('timestamp', 'desc'), limit(limitCount));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const getPayments = async (limitCount = 100) => {
+    const paymentsRef = collection(db, 'payments');
+    const q = query(paymentsRef, orderBy('timestamp', 'desc'), limit(limitCount));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
