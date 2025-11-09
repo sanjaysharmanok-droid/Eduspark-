@@ -145,16 +145,36 @@ export const addQuizAttempt = async (uid: string, attempt: Omit<QuizAttempt, 'id
 export const getAllUsers = async (): Promise<(User & { uid: string; subscription: any; settings: any; createdAt: any; isAdmin: boolean })[]> => {
     const usersRef = collection(db, "users");
     const snapshot = await getDocs(usersRef);
-    return snapshot.docs.map(doc => ({
-        uid: doc.id,
-        name: doc.data().profile.name,
-        email: doc.data().profile.email,
-        picture: doc.data().profile.picture,
-        subscription: doc.data().subscription,
-        settings: doc.data().settings,
-        createdAt: doc.data().profile.createdAt.toDate(), // Convert Firestore timestamp to Date
-        isAdmin: doc.data().isAdmin || false,
-    }));
+    return snapshot.docs.map(doc => {
+        const data = doc.data();
+        const profile = data.profile || {};
+        const subscription = data.subscription || {};
+        const settings = data.settings || {};
+        
+        // Ensure createdAt is a Date object, handling Firestore Timestamps or null/undefined
+        let createdAtDate = new Date(); // Default to now if not found
+        if (profile.createdAt && typeof profile.createdAt.toDate === 'function') {
+            createdAtDate = profile.createdAt.toDate();
+        } else if (profile.createdAt) {
+            // It might already be a Date object or string, try to parse
+            try {
+                createdAtDate = new Date(profile.createdAt);
+            } catch (e) {
+                console.warn(`Could not parse createdAt for user ${doc.id}`);
+            }
+        }
+
+        return {
+            uid: doc.id,
+            name: profile.name || 'N/A',
+            email: profile.email || 'N/A',
+            picture: profile.picture || '',
+            subscription: subscription,
+            settings: settings,
+            createdAt: createdAtDate,
+            isAdmin: data.isAdmin || false,
+        };
+    });
 };
 
 export const getAppConfig = async (): Promise<AppConfig> => {
