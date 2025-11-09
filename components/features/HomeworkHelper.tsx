@@ -10,6 +10,7 @@ import { useTranslations } from '../../hooks/useTranslations';
 import { AppContext } from '../../contexts/AppContext';
 import UpgradePrompt from '../common/UpgradePrompt';
 import AdBanner from '../common/AdBanner';
+import { ToolKey } from '../../constants';
 
 function decode(base64: string): Uint8Array {
   const binaryString = atob(base64);
@@ -117,8 +118,15 @@ const HomeworkHelper: React.FC = () => {
         return;
     };
     
-    if (!canUseFeature('homeworkHelps')) {
-        setLimitError("You've reached your daily limit for homework help.");
+    // Determine which feature is being used based on image upload
+    const featureToUse: ToolKey = imageBase64 ? 'visualAssistant' : 'homeworkHelps';
+
+    if (!canUseFeature(featureToUse)) {
+        if (featureToUse === 'visualAssistant') {
+            setLimitError("You don't have enough credits for an image-based question (10 required).");
+        } else {
+            setLimitError("You've reached your daily limit for homework help.");
+        }
         return;
     }
 
@@ -144,7 +152,7 @@ const HomeworkHelper: React.FC = () => {
         const audioData = await generateSpeech(responseText);
         setAudioContent(audioData);
       }
-      useFeature('homeworkHelps'); // Increment usage
+      useFeature(featureToUse); // Deduct credits or increment usage
     } catch (err) {
       setError('Failed to get an answer. Please try again.');
       console.error(err);
