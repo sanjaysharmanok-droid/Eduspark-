@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import { AppContext } from '../contexts/AppContext';
 import { useTranslations } from '../hooks/useTranslations';
 import { TOOLS, ToolKey } from '../constants';
@@ -16,10 +16,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, setActiveTool, isSidebarC
   const { userRole, setIsSubscriptionModalOpen, isAdmin, setAdminViewMode, canUseFeature } = useContext(AppContext);
   const { t } = useTranslations();
 
-  const mainTools = Object.entries(TOOLS)
-    .filter(([key]) => !['settings', 'planInformation', 'adminPanel'].includes(key))
-    .filter(([key, config]) => config.role === userRole && canUseFeature(key as ToolKey))
-    .map(([key, config]) => ({ key: key as ToolKey, ...config }));
+  const mainTools = useMemo(() => {
+    return Object.entries(TOOLS)
+        .map(([key, config]) => ({ key: key as ToolKey, ...config }))
+        .filter(tool => 
+            tool.categoryKey && // This ensures we only get student/teacher tools
+            tool.role === userRole &&
+            canUseFeature(tool.key)
+        );
+  }, [userRole, canUseFeature]);
 
   const settingsTool = TOOLS['settings'] ? { key: 'settings' as ToolKey, ...TOOLS['settings'] } : null;
   const planTool = TOOLS['planInformation'] ? { key: 'planInformation' as ToolKey, ...TOOLS['planInformation'] } : null;

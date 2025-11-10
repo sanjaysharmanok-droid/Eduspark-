@@ -9,7 +9,7 @@ const RefundPolicyPage: React.FC = () => {
           <h1>Refund & Cancellation Policy</h1>
           <p><em>Last updated: {new Date().toLocaleDateString()}</em></p>
 
-          <p>Thank you for subscribing to EduSpark AI. We are committed to ensuring customer satisfaction with our services. This policy outlines the terms for cancellations and refunds for our subscription plans.</p>
+          <p>Thank you for subscribing to EduSpark AI, a service provided by <strong>Vinayak Shikshan Sansthan Ankhisar</strong>. We are committed to ensuring customer satisfaction with our services. This policy outlines the terms for cancellations and refunds for our subscription plans.</p>
 
           <h2>Subscription Cancellation</h2>
           <p>
@@ -34,7 +34,7 @@ const RefundPolicyPage: React.FC = () => {
           <p>If you have any questions about our Refund and Cancellation Policy, please contact us.</p>
           <ul>
             <li><strong>Support Email:</strong> <a href="mailto:help@edusparks.online">help@edusparks.online</a></li>
-            <li><strong>Legal Business Name:</strong> Vinayak Shikshan Sansthan</li>
+            <li><strong>Legal Business Name:</strong> <strong>Vinayak Shikshan Sansthan Ankhisar</strong></li>
           </ul>
         </div>
       </Card>

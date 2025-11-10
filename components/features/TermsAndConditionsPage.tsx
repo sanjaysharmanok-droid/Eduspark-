@@ -31,7 +31,7 @@ const TermsAndConditionsPage: React.FC = () => {
           <p>We reserve the right to modify or replace these Terms at any time. We will provide notice of any changes by posting the new Terms on this page.</p>
 
           <h2>8. Governing Law</h2>
-          <p>The EduSpark AI service is provided by Vinayak Shikshan Sansthan. These Terms shall be governed and construed in accordance with the laws of India, without regard to its conflict of law provisions.</p>
+          <p>The EduSpark AI service is provided by <strong>Vinayak Shikshan Sansthan Ankhisar</strong>. These Terms shall be governed and construed in accordance with the laws of India, without regard to its conflict of law provisions.</p>
         </div>
       </Card>
     </div>

@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useMemo, useCallback } from 
 import { UserRole, Theme, Language, User, LessonList, QuizAttempt, SavedTopic, SubscriptionTier, Usage, AppConfig } from '../types';
 import { onAuthStateChanged, signOut as firebaseSignOut, FirebaseUser } from '../services/authService';
 import { auth } from '../services/firebase';
-import { ToolKey } from '../constants';
+import { ToolKey, TOOLS } from '../constants';
 import * as firestoreService from '../services/firestoreService';
 import { updateModelConfig } from '../services/geminiService';
 
@@ -81,6 +81,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAdminViewSelected, setIsAdminViewSelected] = useState<boolean>(false);
 
   const [activeTool, setActiveTool] = useState<ToolKey>('homeworkHelper');
+  
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const page = params.get('page') as ToolKey | null;
+
+    if (page) {
+        // Validate that the page is a valid ToolKey
+        const validTools = Object.keys(TOOLS);
+        const validInfoPages: ToolKey[] = ['about', 'privacyPolicy', 'termsAndConditions', 'contactUs', 'refundPolicy'];
+        if (validTools.includes(page) || validInfoPages.includes(page)) {
+             setActiveTool(page);
+        }
+    }
+  }, []); // Run only on initial mount
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {

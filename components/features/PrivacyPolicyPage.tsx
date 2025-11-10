@@ -9,7 +9,7 @@ const PrivacyPolicyPage: React.FC = () => {
           <h1>Privacy Policy</h1>
           <p><em>Last updated: {new Date().toLocaleDateString()}</em></p>
           
-          <p>Welcome to EduSpark AI. We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.</p>
+          <p>Welcome to EduSpark AI, a service provided by <strong>Vinayak Shikshan Sansthan Ankhisar</strong> ("we," "us," or "our"). We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our application.</p>
 
           <h2>Information We Collect</h2>
           <p>We may collect information about you in a variety of ways. The information we may collect includes:</p>
@@ -36,7 +36,7 @@ const PrivacyPolicyPage: React.FC = () => {
           <p>We use administrative, technical, and physical security measures to help protect your personal information. While we have taken reasonable steps to secure the personal information you provide to us, please be aware that despite our efforts, no security measures are perfect or impenetrable, and no method of data transmission can be guaranteed against any interception or other type of misuse.</p>
 
           <h2>Contact Us</h2>
-          <p>If you have questions or comments about this Privacy Policy, please contact us at: help@edusparks.online</p>
+          <p>If you have questions or comments about this Privacy Policy, please contact us at: <a href="mailto:help@edusparks.online">help@edusparks.online</a>. The service is operated by <strong>Vinayak Shikshan Sansthan Ankhisar</strong>.</p>
         </div>
       </Card>
     </div>

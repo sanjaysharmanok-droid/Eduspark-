@@ -16,7 +16,6 @@ const Settings: React.FC = () => {
     setUserRole,
     language,
     setLanguage,
-    setActiveTool,
     isAdmin,
     setAdminViewMode
   } = useContext(AppContext);
@@ -123,15 +122,15 @@ const Settings: React.FC = () => {
       <Card title="Information & Support">
           <div className="divide-y divide-gray-200 dark:divide-white/10">
               {infoLinks.map(link => (
-                  <button 
+                  <a 
                       key={link.key} 
-                      onClick={() => setActiveTool(link.key)}
+                      href={`/?page=${link.key}`}
                       className="w-full text-left py-4 flex justify-between items-center group"
                       aria-label={`Navigate to ${link.label}`}
                   >
                       <span className="text-lg text-gray-800 dark:text-gray-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{link.label}</span>
                       <ChevronRightIcon className="w-5 h-5 text-gray-400 dark:text-gray-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
-                  </button>
+                  </a>
               ))}
           </div>
       </Card>

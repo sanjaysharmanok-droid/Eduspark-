@@ -21,6 +21,9 @@ const AboutPage: React.FC = () => {
             <p>
                 At EduSpark AI, our mission is to make high-quality education accessible, engaging, and personalized for everyone. We believe that AI can be a powerful tool to bridge learning gaps, spark curiosity, and support teachers in their vital work. We are dedicated to creating intuitive, powerful, and safe tools that enhance the educational experience, from kindergarten to higher education and beyond.
             </p>
+            <p>
+                EduSpark AI is proudly developed and maintained by <strong>Vinayak Shikshan Sansthan Ankhisar</strong>.
+            </p>
 
             <h2>For Students</h2>
             <p>

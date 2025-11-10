@@ -24,7 +24,7 @@ const ContactUsPage: React.FC = () => {
             For official correspondence, please use the details below.
           </p>
           <ul>
-            <li><strong>Legal Business Name:</strong> Vinayak Shikshan Sansthan</li>
+            <li><strong>Legal Business Name:</strong> <strong>Vinayak Shikshan Sansthan Ankhisar</strong></li>
             <li><strong>Business Address:</strong> Ankhisar, Bikaner, Rajasthan 334803, India</li>
           </ul>
         </div>
