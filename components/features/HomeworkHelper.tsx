@@ -119,7 +119,7 @@ const HomeworkHelper: React.FC = () => {
     };
     
     // Determine which feature is being used based on image upload
-    const featureToUse: ToolKey = imageBase64 ? 'visualAssistant' : 'homeworkHelps';
+    const featureToUse: ToolKey = imageBase64 ? 'visualAssistant' : 'homeworkHelper';
 
     if (!canUseFeature(featureToUse)) {
         if (featureToUse === 'visualAssistant') {

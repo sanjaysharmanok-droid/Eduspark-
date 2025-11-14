@@ -94,7 +94,10 @@ export interface FeatureAccessConfig {
 }
 
 export interface UsageLimitsConfig {
-  freeTier: {
+  free: {
+    [key in keyof Omit<Usage, 'date'>]?: number;
+  };
+  silver: {
     [key in keyof Omit<Usage, 'date'>]?: number;
   };
   creditCosts: {

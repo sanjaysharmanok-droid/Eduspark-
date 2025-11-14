@@ -11,9 +11,10 @@ import { AppContext } from '../../contexts/AppContext';
 import UpgradePrompt from '../common/UpgradePrompt';
 import AdBanner from '../common/AdBanner';
 import TextArea from '../common/TextArea';
+import { ToolKey } from '../../constants';
 
 const QuizGenerator: React.FC = () => {
-  const { addQuizAttempt, userRole, activeQuizTopic, setActiveQuizTopic, subscriptionTier, canUseFeature, useFeature, usage } = useContext(AppContext);
+  const { addQuizAttempt, userRole, activeQuizTopic, setActiveQuizTopic, subscriptionTier, canUseFeature, useFeature, usage, appConfig } = useContext(AppContext);
 
   const [topic, setTopic] = useState(activeQuizTopic || '');
   const [numQuestions, setNumQuestions] = useState('5');
@@ -75,8 +76,13 @@ const QuizGenerator: React.FC = () => {
         return;
     }
 
-    if (!canUseFeature('quizQuestions', questionsCount)) {
-        setLimitError(`You can generate ${100 - (usage.quizQuestions)} more questions today.`);
+    const toolKey: ToolKey = isTeacher ? 'quizGeneratorTeacher' : 'quizGenerator';
+    if (!canUseFeature(toolKey, questionsCount)) {
+        const limits = appConfig?.usageLimits[subscriptionTier as 'free' | 'silver'];
+        const limit = limits?.quizQuestions;
+        const currentUsage = usage.quizQuestions;
+        const remaining = limit ? limit - currentUsage : 0;
+        setLimitError(`You can generate ${remaining > 0 ? remaining : 0} more questions today.`);
         return;
     }
 
@@ -90,14 +96,14 @@ const QuizGenerator: React.FC = () => {
         setUserAnswers(new Array(generatedQuiz.questions.length).fill(null));
         setIsSolving(true);
       }
-      useFeature('quizQuestions', questionsCount);
+      useFeature(toolKey, questionsCount);
     } catch (err) {
       setError('Failed to generate quiz. The model may have returned an unexpected format. Please try again.');
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [topic, numQuestions, difficulty, outputLanguage, userRole, canUseFeature, useFeature, isTeacher, isPaidUser, usage.quizQuestions]);
+  }, [topic, numQuestions, difficulty, outputLanguage, userRole, canUseFeature, useFeature, isTeacher, isPaidUser, usage.quizQuestions, appConfig, subscriptionTier]);
   
   const handleAnswerChange = (questionIndex: number, answer: string) => {
     const newAnswers = [...userAnswers];

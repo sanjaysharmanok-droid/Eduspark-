@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserRole } from './types';
+import { UserRole, Usage } from './types';
 import { BookOpenIcon, SparklesIcon, BeakerIcon, ClipboardDocumentListIcon, LightBulbIcon, PresentationChartBarIcon, AcademicCapIcon, CameraIcon, SettingsIcon, LibraryIcon, ReportIcon, InformationCircleIcon, DocumentTextIcon, MailIcon, RefreshIcon, CreditCardIcon, ShieldCheckIcon } from './components/icons';
 
 export const TOOLS: Record<string, ToolConfig> = {
@@ -151,3 +151,15 @@ export interface ToolConfig {
     icon: React.ReactElement;
     role: UserRole;
 }
+
+export const TOOL_USAGE_KEY_MAP: { [key in ToolKey]?: keyof Omit<Usage, 'date'> } = {
+    lessonPlanner: 'lessonPlans',
+    homeworkHelper: 'homeworkHelps',
+    topicExplorer: 'topicSearches',
+    activityGenerator: 'activities',
+    presentationGenerator: 'presentations',
+    quizGenerator: 'quizQuestions',
+    quizGeneratorTeacher: 'quizQuestions',
+    summarizer: 'summaries',
+    summarizerTeacher: 'summaries',
+};

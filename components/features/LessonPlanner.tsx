@@ -35,7 +35,7 @@ const LessonPlanner: React.FC = () => {
       return;
     }
     
-    if (!canUseFeature('lessonPlans')) {
+    if (!canUseFeature('lessonPlanner')) {
         setLimitError("You've reached your daily limit for lesson plans.");
         return;
     }
@@ -47,7 +47,7 @@ const LessonPlanner: React.FC = () => {
     try {
       const plan = await generateLessonPlan(topic, grade, duration, outputLanguage);
       setLessonPlan(plan);
-      useFeature('lessonPlans');
+      useFeature('lessonPlanner');
     } catch (err) {
       setError('Failed to generate lesson plan. Please try again.');
       console.error(err);

@@ -177,7 +177,8 @@ const getDefaultAppConfig = (): AppConfig => {
         },
         featureAccess: defaultFeatureAccess,
         usageLimits: {
-            freeTier: { topicSearches: 5, homeworkHelps: 5, summaries: 5, presentations: 3, lessonPlans: 5, activities: 3, quizQuestions: 100 },
+            free: { topicSearches: 5, homeworkHelps: 5, summaries: 5, presentations: 3, lessonPlans: 5, activities: 3, quizQuestions: 100 },
+            silver: { topicSearches: 50, homeworkHelps: 50, summaries: 50, presentations: 10, lessonPlans: 20, activities: 20, quizQuestions: 500 },
             creditCosts: { visualAssistant: 10 }
         },
         superAdmins: SUPER_ADMINS_LIST,
@@ -202,7 +203,8 @@ const mergeConfigWithDefaults = (dbConfig: any, defaultConfig: AppConfig): AppCo
         aiModels: { ...defaultConfig.aiModels, ...dbConfig.aiModels },
         featureAccess: featureAccess,
         usageLimits: {
-            freeTier: { ...defaultConfig.usageLimits.freeTier, ...dbConfig.usageLimits?.freeTier },
+            free: { ...defaultConfig.usageLimits.free, ...dbConfig.usageLimits?.free },
+            silver: { ...defaultConfig.usageLimits.silver, ...dbConfig.usageLimits?.silver },
             creditCosts: { ...defaultConfig.usageLimits.creditCosts, ...dbConfig.usageLimits?.creditCosts },
         },
         paymentSettings: { gateways: dbConfig.paymentSettings?.gateways || defaultConfig.paymentSettings.gateways },

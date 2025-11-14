@@ -55,7 +55,7 @@ const AppConfiguration: React.FC = () => {
         }));
     };
     
-    const handleLimitChange = (feature: string, value: string) => {
+    const handleLimitChange = (tier: 'free' | 'silver', feature: string, value: string) => {
         if (!config) return;
         const numValue = parseInt(value, 10);
         if (isNaN(numValue)) return;
@@ -63,8 +63,8 @@ const AppConfiguration: React.FC = () => {
             ...prevConfig!,
             usageLimits: {
                 ...prevConfig!.usageLimits,
-                freeTier: {
-                    ...prevConfig!.usageLimits.freeTier,
+                [tier]: {
+                    ...(prevConfig!.usageLimits[tier] || {}),
                     [feature]: numValue
                 }
             }
@@ -141,18 +141,33 @@ const AppConfiguration: React.FC = () => {
 
             {/* Usage Limits Management */}
             <Card title="Subscription Limits & Costs">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div>
                         <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200">Free Tier Daily Limits</h4>
                          <div className="space-y-4">
-                            {Object.keys(config.usageLimits.freeTier).map(key => (
+                            {Object.keys(config.usageLimits.free).map(key => (
                                 <Input
-                                    key={key}
+                                    key={`free-${key}`}
                                     label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                                     type="number"
-                                    id={`limit-${key}`}
-                                    value={config.usageLimits.freeTier[key as keyof typeof config.usageLimits.freeTier] || 0}
-                                    onChange={e => handleLimitChange(key, e.target.value)}
+                                    id={`limit-free-${key}`}
+                                    value={config.usageLimits.free[key as keyof typeof config.usageLimits.free] || 0}
+                                    onChange={e => handleLimitChange('free', key, e.target.value)}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200">Silver Tier Daily Limits</h4>
+                         <div className="space-y-4">
+                            {Object.keys(config.usageLimits.silver).map(key => (
+                                <Input
+                                    key={`silver-${key}`}
+                                    label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                                    type="number"
+                                    id={`limit-silver-${key}`}
+                                    value={config.usageLimits.silver[key as keyof typeof config.usageLimits.silver] || 0}
+                                    onChange={e => handleLimitChange('silver', key, e.target.value)}
                                 />
                             ))}
                         </div>
@@ -162,7 +177,7 @@ const AppConfiguration: React.FC = () => {
                         <div className="space-y-4">
                             {Object.keys(config.usageLimits.creditCosts).map(key => (
                                 <Input
-                                    key={key}
+                                    key={`credit-${key}`}
                                     label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                                     type="number"
                                     id={`credit-${key}`}
@@ -214,8 +229,10 @@ const AppConfiguration: React.FC = () => {
              </div>
 
             <div className="flex justify-end items-center pt-4">
-                {successMessage && <p className="text-green-600 dark:text-green-400 mr-4 transition-opacity duration-300">{successMessage}</p>}
-                <Button onClick={handleSave} isLoading={saving} type="button">Save All Settings</Button>
+                {successMessage && <p className="text-green-500 mr-4">{successMessage}</p>}
+                <Button onClick={handleSave} isLoading={saving}>
+                    {saving ? 'Saving...' : 'Save Configuration'}
+                </Button>
             </div>
         </div>
     );

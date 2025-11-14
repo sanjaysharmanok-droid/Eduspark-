@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useMemo, useCallback } from 
 import { UserRole, Theme, Language, User, LessonList, QuizAttempt, SavedTopic, SubscriptionTier, Usage, AppConfig } from '../types';
 import { onAuthStateChanged, signOut as firebaseSignOut, FirebaseUser } from '../services/authService';
 import { auth } from '../services/firebase';
-import { ToolKey, TOOLS } from '../constants';
+import { ToolKey, TOOLS, TOOL_USAGE_KEY_MAP } from '../constants';
 import * as firestoreService from '../services/firestoreService';
 import { updateModelConfig } from '../services/geminiService';
 
@@ -31,8 +31,8 @@ interface AppContextType {
   usage: Usage;
   isSubscriptionModalOpen: boolean;
   setIsSubscriptionModalOpen: (isOpen: boolean) => void;
-  canUseFeature: (feature: keyof Omit<Usage, 'date'> | ToolKey, amount?: number) => boolean;
-  useFeature: (feature: keyof Omit<Usage, 'date'> | ToolKey, amount?: number) => void;
+  canUseFeature: (feature: ToolKey, amount?: number) => boolean;
+  useFeature: (feature: ToolKey, amount?: number) => void;
   startGuestSession: () => void;
   isAdmin: boolean;
   appConfig: AppConfig | null;
@@ -270,24 +270,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const canUseFeature = useCallback((feature: ToolKey, amount = 1): boolean => {
     if (!appConfig) return false;
-    
-    if (feature === 'adminPanel') {
-        return isAdmin;
-    }
-    
+
+    if (feature === 'adminPanel') return isAdmin;
+
     const featureConfig = appConfig.featureAccess[feature];
     if (!featureConfig || !featureConfig.enabled) return false;
+
     const tierHierarchy: Record<SubscriptionTier, number> = { free: 0, silver: 1, gold: 2 };
     if (tierHierarchy[subscriptionTier] < tierHierarchy[featureConfig.minTier]) return false;
+
     const creditCost = appConfig.usageLimits.creditCosts[feature];
     if (creditCost) return credits >= creditCost * amount;
-    if (subscriptionTier === 'free') {
-        const limit = appConfig.usageLimits.freeTier[feature as keyof typeof usage];
+
+    if (subscriptionTier === 'gold') return true;
+
+    const usageKey = TOOL_USAGE_KEY_MAP[feature];
+    if (!usageKey) {
+        return true; 
+    }
+
+    const limitsForTier = appConfig.usageLimits[subscriptionTier as 'free' | 'silver'];
+    if (limitsForTier) {
+        const limit = limitsForTier[usageKey];
         if (limit !== undefined) {
-            const currentUsage = Number(usage[feature as keyof Usage]) || 0;
+            const currentUsage = Number(usage[usageKey]) || 0;
             return (currentUsage + amount) <= limit;
         }
     }
+    
     return true;
   }, [appConfig, subscriptionTier, credits, usage, isAdmin]);
 
@@ -302,12 +312,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCredits(newCredits);
         firestoreService.updateUserData(firebaseUser.uid, { 'subscription.credits': newCredits });
     } else {
-        const limit = appConfig.usageLimits.freeTier[feature as keyof typeof usage];
-        if (subscriptionTier === 'free' && limit !== undefined) {
-            const currentUsage = Number(usage[feature as keyof Usage]) || 0;
-            const newUsage = { ...usage, [feature]: currentUsage + amount };
-            setUsage(newUsage);
-            firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
+        if (subscriptionTier === 'gold') return;
+
+        const usageKey = TOOL_USAGE_KEY_MAP[feature];
+        if (!usageKey) return; 
+
+        const limitsForTier = appConfig.usageLimits[subscriptionTier as 'free' | 'silver'];
+        if (limitsForTier) {
+            const limit = limitsForTier[usageKey];
+            if (limit !== undefined) {
+                const currentUsage = Number(usage[usageKey]) || 0;
+                const newUsage = { ...usage, [usageKey]: currentUsage + amount };
+                setUsage(newUsage);
+                firestoreService.updateUserData(firebaseUser.uid, { usage: newUsage });
+            }
         }
     }
   }, [firebaseUser, credits, usage, appConfig, subscriptionTier]);

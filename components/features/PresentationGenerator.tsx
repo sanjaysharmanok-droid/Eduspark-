@@ -96,7 +96,7 @@ const PresentationGenerator: React.FC = () => {
         return;
     }
     
-    if (!canUseFeature('presentations')) {
+    if (!canUseFeature('presentationGenerator')) {
         setLimitError("You've reached your daily limit for presentations.");
         return;
     }
@@ -108,7 +108,7 @@ const PresentationGenerator: React.FC = () => {
     try {
       const result = await generateVisualPresentation(topic, slidesCount, theme, outputLanguage);
       setPresentation(result);
-      useFeature('presentations');
+      useFeature('presentationGenerator');
     } catch (err) {
       setError('Failed to generate presentation. Please try again.');
       console.error(err);

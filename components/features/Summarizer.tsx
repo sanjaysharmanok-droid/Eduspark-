@@ -11,6 +11,7 @@ import { AppContext } from '../../contexts/AppContext';
 import UpgradePrompt from '../common/UpgradePrompt';
 import AdBanner from '../common/AdBanner';
 import ResponseWrapper from '../common/ResponseWrapper';
+import { ToolKey } from '../../constants';
 
 type SummaryStyle = 'bullets' | 'paragraph';
 
@@ -23,7 +24,7 @@ const Summarizer: React.FC = () => {
   const [limitError, setLimitError] = useState<string | null>(null);
   
   const { t, language: contextLanguage } = useTranslations();
-  const { subscriptionTier, canUseFeature, useFeature } = useContext(AppContext);
+  const { subscriptionTier, canUseFeature, useFeature, activeTool } = useContext(AppContext);
   const [outputLanguage, setOutputLanguage] = useState<Language>(contextLanguage);
   
   useEffect(() => {
@@ -34,7 +35,7 @@ const Summarizer: React.FC = () => {
     e.preventDefault();
     if (!inputText) return;
 
-    if (!canUseFeature('summaries')) {
+    if (!canUseFeature(activeTool as ToolKey)) {
         setLimitError("You've reached your daily limit for summaries.");
         return;
     }
@@ -46,14 +47,14 @@ const Summarizer: React.FC = () => {
     try {
       const response = await generateSummary(inputText, summaryStyle, outputLanguage);
       setSummary(response);
-      useFeature('summaries');
+      useFeature(activeTool as ToolKey);
     } catch (err)      {
       setError('Failed to generate summary. Please try again.');
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [inputText, summaryStyle, outputLanguage, canUseFeature, useFeature]);
+  }, [inputText, summaryStyle, outputLanguage, canUseFeature, useFeature, activeTool]);
   
   const getShareText = () => {
       if (!summary) return '';

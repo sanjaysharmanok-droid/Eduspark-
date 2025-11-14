@@ -30,7 +30,7 @@ const ActivityGenerator: React.FC = () => {
     e.preventDefault();
     if (!subject) return;
 
-    if (!canUseFeature('activities')) {
+    if (!canUseFeature('activityGenerator')) {
         setLimitError("You've reached your daily limit for activity generations.");
         return;
     }
@@ -43,7 +43,7 @@ const ActivityGenerator: React.FC = () => {
       const prompt = `Generate 5 creative and engaging classroom activity ideas for the subject of "${subject}". For each idea, provide a brief description. Format the response with clear headings for each idea.`;
       const response = await getSimpleResponse(prompt, outputLanguage);
       setIdeas(response);
-      useFeature('activities');
+      useFeature('activityGenerator');
     } catch (err)      {
       setError('Failed to generate ideas. Please try again.');
       console.error(err);

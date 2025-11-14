@@ -3,16 +3,7 @@ import { AppContext } from '../../contexts/AppContext';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import { SparklesIcon } from '../icons';
-
-const DAILY_LIMITS = {
-  topicSearches: 5,
-  homeworkHelps: 5,
-  summaries: 5,
-  presentations: 3,
-  lessonPlans: 5,
-  activities: 3,
-  quizQuestions: 100,
-};
+import { Usage, SubscriptionTier } from '../../types';
 
 const UsageBar: React.FC<{ label: string; used: number; total: number }> = ({ label, used, total }) => {
   const percentage = total > 0 ? (used / total) * 100 : 0;
@@ -33,12 +24,14 @@ const UsageBar: React.FC<{ label: string; used: number; total: number }> = ({ la
 };
 
 const PlanInformation: React.FC = () => {
-  const { subscriptionTier, credits, usage, setIsSubscriptionModalOpen, userRole } = useContext(AppContext);
+  const { subscriptionTier, credits, usage, setIsSubscriptionModalOpen, userRole, appConfig } = useContext(AppContext);
 
-  const isFreeTier = subscriptionTier === 'free';
+  const tierHasLimits = subscriptionTier === 'free' || subscriptionTier === 'silver';
   const studentFeatures = ['topicSearches', 'homeworkHelps', 'summaries', 'quizQuestions'] as const;
   const teacherFeatures = ['lessonPlans', 'activities', 'presentations', 'summaries', 'quizQuestions'] as const;
   const featuresToShow = userRole === 'teacher' ? teacherFeatures : studentFeatures;
+
+  const currentTierLimits = appConfig?.usageLimits[subscriptionTier as 'free' | 'silver'];
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -67,10 +60,10 @@ const PlanInformation: React.FC = () => {
       </Card>
       
       <Card title="Daily Usage">
-        {isFreeTier ? (
+        {tierHasLimits && currentTierLimits ? (
           <div className="space-y-4">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Your daily usage resets at midnight. Upgrade to a premium plan for unlimited access.
+              Your daily usage resets at midnight. {subscriptionTier === 'free' && "Upgrade to a premium plan for higher limits."}
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {featuresToShow.map(feature => (
@@ -78,7 +71,7 @@ const PlanInformation: React.FC = () => {
                     key={feature} 
                     label={feature.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} // Format name
                     used={usage[feature] || 0}
-                    total={DAILY_LIMITS[feature]}
+                    total={currentTierLimits[feature as keyof Usage] || 0}
                  />
               ))}
             </div>

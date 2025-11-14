@@ -43,7 +43,7 @@ const TopicExplorer: React.FC = () => {
     e.preventDefault();
     if (!topic) return;
 
-    if (!canUseFeature('topicSearches')) {
+    if (!canUseFeature('topicExplorer')) {
         setLimitError("You've reached your daily limit for topic searches.");
         return;
     }
@@ -57,7 +57,7 @@ const TopicExplorer: React.FC = () => {
       const { explanation: newExplanation, imageUrl: newImageUrl } = await getTopicExplanationWithImage(topic, outputLanguage, responseStyle);
       setExplanation(newExplanation);
       setImageUrl(newImageUrl);
-      useFeature('topicSearches');
+      useFeature('topicExplorer');
     } catch (err) {
       setError('Failed to explore the topic. Please try again.');
       console.error(err);
